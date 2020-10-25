@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/p4u/erc20-storage-proof/tokenstate"
+	"gitlab.com/vocdoni/go-dvote/log"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -24,18 +27,34 @@ const web3 = "https://mainnet.infura.io/v3/63831ad4d7034546a84339d02cba2eab"
 func main() {
 	contract := flag.String("contract", "", "ERC20 contract address")
 	holder := flag.String("holder", "", "address of the token holder")
-	decimals := flag.Int("decimals", 18, "number of decimals for the ERC20 contract")
+	//	decimals := flag.Int("decimals", 18, "number of decimals for the ERC20 contract")
 	flag.Parse()
+	log.Init("info", "stdout")
+
+	ts := tokenstate.Web3{}
+	ts.Init(context.Background(), web3, *contract)
+	tokenData, err := ts.GetTokenData()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if tokenData.Decimals < 1 {
+		log.Fatal("decimals cannot be fetch")
+	}
+	balance, err := ts.Balance(context.TODO(), *holder)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("contract:%s holder:%s balance:%s", *contract, *holder, balance.String())
+
 	*contract = strings.TrimPrefix(*contract, "0x")
 	*holder = strings.TrimPrefix(*holder, "0x")
-
 	contractb, err := hex.DecodeString(*contract)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	c, err := ethclient.Dial(web3)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	addr := common.Address{}
 	copy(addr[:], contractb[:20])
@@ -47,7 +66,8 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		value, err := c.StorageAt(ctx, addr, slot, nil)
 		if err != nil {
-			panic(err)
+			log.Error(err)
+			continue
 		}
 		cancel()
 
@@ -57,16 +77,20 @@ func main() {
 		if _, ok := amount.SetString(fmt.Sprintf("0x%x", value)); !ok {
 			continue
 		}
-		amount.Mul(amount, big.NewFloat(1/(math.Pow10(*decimals))))
+		amount.Mul(amount, big.NewFloat(1/(math.Pow10(int(tokenData.Decimals)))))
 
-		fmt.Printf("Found balance on slot index %d: %s\n", i, amount.String())
+		log.Infof("found balance on slot index %d: %s\n", i, amount.String())
+		if amount.Cmp(balance) != 0 {
+			log.Warnf("balance does not match")
+		}
+		break
 	}
 }
 
 func getSlot(holder string, position int) (slot [32]byte) {
 	hl, err := hex.DecodeString(holder)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	hl = common.LeftPadBytes(hl, 32)
 	posHex := fmt.Sprintf("%x", position)
@@ -75,7 +99,7 @@ func getSlot(holder string, position int) (slot [32]byte) {
 	}
 	p, err := hex.DecodeString(posHex)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	p = common.LeftPadBytes(p, 32)
 
