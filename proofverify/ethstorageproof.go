@@ -1,10 +1,13 @@
-package proof
+package proofverify
+
+// Initial fork from https://github.com/aergoio/aergo
 
 import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
 
 	"golang.org/x/crypto/sha3"
@@ -29,52 +32,56 @@ var (
 	nilBuf    = make([]byte, 8)
 )
 
-func VerifyEthStorageProof(key []byte, value RlpObject, expectedHash []byte, proof [][]byte) bool {
-	if len(key) == 0 || value == nil || len(proof) == 0 {
-		return false
+// VerifyEthStorageProof verifies a Merkle storage proof
+func VerifyEthStorageProof(key, value []byte, expectedHash []byte, proof [][]byte) (bool, error) {
+	var pvalue RlpString
+	pvalue = value
+
+	if len(key) == 0 || pvalue == nil || len(proof) == 0 {
+		return false, fmt.Errorf("key, value or proof are empty")
 	}
 	key = []byte(hex.EncodeToString(keccak256(key)))
-	valueRlpEncoded := RlpEncode(value)
+	valueRlpEncoded := RlpEncode(pvalue)
 	ks := keyStream{bytes.NewBuffer(key)}
 	for i, p := range proof {
 		if ((i != 0 && len(p) < 32) || !bytes.Equal(expectedHash, keccak256(p))) && !bytes.Equal(expectedHash, p) {
-			return false
+			return false, nil
 		}
 		n := decodeRlpTrieNode(p)
 		switch len(n) {
 		case shortNode:
 			if len(n[0]) == 0 {
-				return false
+				return false, nil
 			}
 			leaf, sharedNibbles, err := decodeHpHeader(n[0][0])
 			if err != nil {
-				return false
+				return false, fmt.Errorf("cannot decode leaf: %w", err)
 			}
 			sharedNibbles = append(sharedNibbles, []byte(hex.EncodeToString(n[0][1:]))...)
 			if len(sharedNibbles) == 0 {
-				return false
+				return false, nil
 			}
 			if leaf {
-				return bytes.Equal(sharedNibbles, ks.key(-1)) && bytes.Equal(n[1], valueRlpEncoded)
+				return bytes.Equal(sharedNibbles, ks.key(-1)) && bytes.Equal(n[1], valueRlpEncoded), nil
 			}
 			if !bytes.Equal(sharedNibbles, ks.key(len(sharedNibbles))) {
-				return false
+				return false, nil
 			}
 			expectedHash = n[1]
 		case branchNode:
 			if ks.Len() == 0 {
-				return bytes.Equal(n[16], valueRlpEncoded)
+				return bytes.Equal(n[16], valueRlpEncoded), nil
 			}
 			k := ks.index()
 			if k > 0x0f {
-				return false
+				return false, nil
 			}
 			expectedHash = n[k]
 		default:
-			return false
+			return false, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func decodeRlpTrieNode(data []byte) rlpNode {

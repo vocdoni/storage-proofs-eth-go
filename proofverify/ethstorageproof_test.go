@@ -1,4 +1,4 @@
-package proof
+package proofverify
 
 import (
 	"bytes"
@@ -90,8 +90,8 @@ func TestVerify(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		if VerifyEthStorageProof(tt.key, RlpString(tt.value), keccak256(tt.proof[0]), tt.proof) != tt.verify {
-			t.Errorf("testcase %d: want %v, got %v\n", i, tt.verify, !tt.verify)
+		if vp, err := VerifyEthStorageProof(tt.key, RlpString(tt.value), keccak256(tt.proof[0]), tt.proof); vp != tt.verify || err != nil {
+			t.Errorf("testcase %d: want %v, got %v (err: %s)\n", i, tt.verify, !tt.verify, err)
 		}
 	}
 }
