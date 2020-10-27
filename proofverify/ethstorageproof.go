@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/vocdoni/erc20-storage-proof/token"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -32,26 +33,51 @@ var (
 	nilBuf    = make([]byte, 8)
 )
 
-// VerifyEthStorageProof verifies a Merkle storage proof
-func VerifyEthStorageProof(key, value []byte, expectedHash []byte, proof [][]byte) (bool, error) {
-	var pvalue RlpString
-	pvalue = value
+func VerifyEIP1186(proof *token.StorageProof) (bool, error) {
+	var nonce RlpString
+	var balance RlpString
+	var storageroot RlpString
+	var codehash RlpString
+	var err error
 
-	if len(key) == 0 || pvalue == nil || len(proof) == 0 {
+	// "0x0" means empty on RLP encoding, so if that is the case, do not decode
+	if proof.Nonce.String() != "0x0" {
+		nonce, err = hex.DecodeString(removeHexPrefix(proof.Nonce.String()))
+		if err != nil {
+			return false, err
+		}
+	}
+	if proof.Balance.String() != "0x0" {
+		balance, err = hex.DecodeString(removeHexPrefix(proof.Balance.String()))
+		if err != nil {
+			return false, err
+		}
+	}
+	storageroot = proof.StorageHash.Bytes()
+	codehash = proof.CodeHash.Bytes()
+	values := RlpList{nonce, balance, storageroot, codehash}
+
+	return VerifyEthStorageProof(proof.Address.Bytes(), values, proof.StateRoot.Bytes(), ProofToBytes(proof.AccountProof))
+}
+
+// VerifyEthStorageProof verifies a Merkle storage proof
+func VerifyEthStorageProof(key []byte, value RlpObject, expectedHash []byte, proof [][]byte) (bool, error) {
+
+	if len(key) == 0 || value == nil || len(proof) == 0 {
 		return false, fmt.Errorf("key, value or proof are empty")
 	}
 	key = []byte(hex.EncodeToString(keccak256(key)))
-	valueRlpEncoded := RlpEncode(pvalue)
+	valueRlpEncoded := RlpEncode(value)
 	ks := keyStream{bytes.NewBuffer(key)}
 	for i, p := range proof {
 		if ((i != 0 && len(p) < 32) || !bytes.Equal(expectedHash, keccak256(p))) && !bytes.Equal(expectedHash, p) {
-			return false, nil
+			return false, fmt.Errorf("expected hash does not match")
 		}
 		n := decodeRlpTrieNode(p)
 		switch len(n) {
 		case shortNode:
 			if len(n[0]) == 0 {
-				return false, nil
+				return false, fmt.Errorf("a short node is empty")
 			}
 			leaf, sharedNibbles, err := decodeHpHeader(n[0][0])
 			if err != nil {
@@ -59,26 +85,32 @@ func VerifyEthStorageProof(key, value []byte, expectedHash []byte, proof [][]byt
 			}
 			sharedNibbles = append(sharedNibbles, []byte(hex.EncodeToString(n[0][1:]))...)
 			if len(sharedNibbles) == 0 {
-				return false, nil
+				return false, fmt.Errorf("no nibbles in short node")
 			}
 			if leaf {
-				return bytes.Equal(sharedNibbles, ks.key(-1)) && bytes.Equal(n[1], valueRlpEncoded), nil
+				if bytes.Equal(sharedNibbles, ks.key(-1)) && bytes.Equal(n[1], valueRlpEncoded) {
+					return true, nil
+				}
+				return false, fmt.Errorf("leaf node does not match value (%x != %x)", n[1], valueRlpEncoded)
 			}
 			if !bytes.Equal(sharedNibbles, ks.key(len(sharedNibbles))) {
-				return false, nil
+				return false, fmt.Errorf("key path does not match on short node")
 			}
 			expectedHash = n[1]
 		case branchNode:
 			if ks.Len() == 0 {
-				return bytes.Equal(n[16], valueRlpEncoded), nil
+				if bytes.Equal(n[16], valueRlpEncoded) {
+					return true, nil
+				}
+				return false, fmt.Errorf("key path ended but leaf value not found")
 			}
 			k := ks.index()
 			if k > 0x0f {
-				return false, nil
+				return false, fmt.Errorf("key path does not match on branch node")
 			}
 			expectedHash = n[k]
 		default:
-			return false, nil
+			return false, fmt.Errorf("unknown type of node")
 		}
 	}
 	return false, nil

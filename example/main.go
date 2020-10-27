@@ -59,7 +59,8 @@ func main() {
 	}
 	log.Debugf("%s", sproofBytes)
 
-	pvalue, err := hex.DecodeString(trimHex(sproof.StorageProof[0].Value.String()))
+	var pvalue proofverify.RlpString
+	pvalue, err = hex.DecodeString(trimHex(sproof.StorageProof[0].Value.String()))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,12 +69,39 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	if pv, err := proofverify.VerifyEthStorageProof(key, pvalue, sproof.StorageHash.Bytes(), proofverify.ProofToBytes(sproof.StorageProof[0].Proof)); pv {
-		log.Info("proof is valid!\n")
+	if pv, err := proofverify.VerifyEthStorageProof(key, &pvalue, sproof.StorageHash.Bytes(), proofverify.ProofToBytes(sproof.StorageProof[0].Proof)); pv {
+		log.Info("storage proof is valid!\n")
 	} else {
-		log.Warnf("proof is invalid (err %s)\n", err)
+		log.Warnf("storage proof is invalid (err %s)", err)
 	}
+
+	var cnonce proofverify.RlpString
+	var cbalance proofverify.RlpString
+	var cstorageroot proofverify.RlpString
+	var ccodehash proofverify.RlpString
+	// "0x0" means empty on RLP encoding, so if that is the case, do not decode
+	if sproof.Nonce.String() != "0x0" {
+		cnonce, err = hex.DecodeString(trimHex(sproof.Nonce.String()))
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	if sproof.Balance.String() != "0x0" {
+		cbalance, err = hex.DecodeString(trimHex(sproof.Balance.String()))
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	cstorageroot = sproof.StorageHash.Bytes()
+	ccodehash = sproof.CodeHash.Bytes()
+	cvalues := proofverify.RlpList{cnonce, cbalance, cstorageroot, ccodehash}
+
+	if pv, err := proofverify.VerifyEthStorageProof(sproof.Address.Bytes(), cvalues, sproof.StateRoot.Bytes(), proofverify.ProofToBytes(sproof.AccountProof)); pv {
+		log.Info("account proof is valid!\n")
+	} else {
+		log.Warnf("account proof is invalid (err %s)\n", err)
+	}
+
 }
 
 func trimHex(s string) string {

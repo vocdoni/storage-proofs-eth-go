@@ -121,7 +121,7 @@ func (w *ERC20Token) TokenTotalSupply() (*big.Int, error) {
 }
 
 // GetProof returns the storage merkle proofs for the acount holder
-func (w *ERC20Token) GetProof(ctx context.Context, holder common.Address, block *types.Block) (*AccountResult, error) {
+func (w *ERC20Token) GetProof(ctx context.Context, holder common.Address, block *types.Block) (*StorageProof, error) {
 	islot, _, err := w.GetIndexSlot(holder)
 	if err != nil {
 		return nil, err
@@ -140,9 +140,11 @@ func (w *ERC20Token) GetProof(ctx context.Context, holder common.Address, block 
 	return w.getProof(ctx, keys, block)
 }
 
-func (w *ERC20Token) getProof(ctx context.Context, keys []string, block *types.Block) (*AccountResult, error) {
-	var resp *AccountResult
+func (w *ERC20Token) getProof(ctx context.Context, keys []string, block *types.Block) (*StorageProof, error) {
+	var resp *StorageProof
 	err := w.rpccli.CallContext(ctx, &resp, "eth_getProof", fmt.Sprintf("0x%x", w.tokenAddr), keys, toBlockNumArg(block.Number()))
+	resp.Height = block.Header().Number
+	resp.StateRoot = block.Root()
 	return resp, err
 }
 

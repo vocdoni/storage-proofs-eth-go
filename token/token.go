@@ -8,7 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-type AccountResult struct {
+type StorageProof struct {
+	StateRoot    common.Hash     `json:"stateRoot"`
+	Height       *big.Int        `json:"height"`
 	Address      common.Address  `json:"address"`
 	AccountProof []string        `json:"accountProof"`
 	Balance      *hexutil.Big    `json:"balance"`
