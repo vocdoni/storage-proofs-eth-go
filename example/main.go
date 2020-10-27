@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"flag"
 
-	"github.com/p4u/erc20-storage-proof/proofverify"
-	"github.com/p4u/erc20-storage-proof/token"
+	"github.com/vocdoni/erc20-storage-proof/proofverify"
+	"github.com/vocdoni/erc20-storage-proof/token"
 	"gitlab.com/vocdoni/go-dvote/log"
 
 	"github.com/ethereum/go-ethereum/common"
