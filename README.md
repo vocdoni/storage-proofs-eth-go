@@ -2,11 +2,11 @@
 
 A storage trie is where all of the contract data lives. Each Ethereum account has its own storage trie. A 256-bit hash of the storage trie’s root node is stored as the storageRoot value in the global state trie.
 
-A storage proof is a Merkle Proof on this storage trie. For the scope of this proposal, the storage proof demonstrates the balance of a token holder for a specific State Root Hash (Ethereum block).
+A storage proof is a Merkle Proof on this storage trie. For the scope of this proposal, the storage proof demonstrates the balance of a token holder for a specific State Root Hash (Ethereum block). This proof can be verified offchain.
 
 ![storage trie](https://miro.medium.com/max/529/1*f0vOn0lRgrY5NjFlbUMBFg.jpeg)
 
-[EIP1186](https://github.com/ethereum/EIPs/issues/1186) introduces the web3 call `eth_getProof` which is a convenient method for obtaining the storage proof: 
+[EIP1186](https://github.com/ethereum/EIPs/issues/1186) introduces the web3 call `eth_getProof` which is a convenient method for obtaining the storage proof.
 
 More info regarding storage proofs:
 
@@ -16,7 +16,7 @@ More info regarding storage proofs:
 
 ## Status
 
-This GoLang module is WIP.
+**This GoLang module is WIP.**
 
 TODO list:
 - [ ] create an interface around token 
@@ -31,7 +31,7 @@ This repository brings all required GoLang packages for generate and verify Ethe
 Create a `token.ERC20Token{}` type variable, and initialize it with contract `0xdac17f958d2ee523a2206206994597c13d831ec7` (Tether Stablecoin).
 ```golang
     web3 := "https://web3.dappnode.net" // do not abuse please
-	ts := token.ERC20Token{}
+    ts := token.ERC20Token{}
     ts.Init(context.Background(), web3, "0xdac17f958d2ee523a2206206994597c13d831ec7")
 ```
 
@@ -57,8 +57,8 @@ The storage slot for a specific token holder will be equal to `keccack256( token
 	if err != nil {
 		panic(err)
 	}
-    fmt.Printf("index slot for the contract is %d\n", slot)
-    fmt.Printf("amount found on the EVM storage is %s\n"), amount.String())
+	fmt.Printf("index slot for the contract is %d\n", slot)
+	fmt.Printf("amount found on the EVM storage is %s\n"), amount.String())
 ```
 
 Now lets get the storage proof for the previous token holder on the last Ethereum block, this is obtained using EIP1186 web3 method `eth_getProof`.
