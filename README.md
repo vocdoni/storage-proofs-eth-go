@@ -1,4 +1,4 @@
-# erc-20 storage proof
+# ethereum storage proof
 
 A storage trie is where all of the contract data lives. Each Ethereum account has its own storage trie. A 256-bit hash of the storage trie’s root node is stored as the storageRoot value in the global state trie.
 
