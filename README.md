@@ -67,24 +67,14 @@ Now lets get the storage proof for the previous token holder on the last Ethereu
 	if err != nil {
 		panic(err)
 	}
-
-	pvalue, err := hex.DecodeString(trimHex(sproof.StorageProof[0].Value.String()))
-	if err != nil {
-		panic(err)
-	}
-
-	key, err := hex.DecodeString(trimHex(sproof.StorageProof[0].Key))
-	if err != nil {
-		panic(err)
-	}
 ```
 
 Finally, for a key (keccack256(tokenHolder+indexSlot)), a value (balance) and a Storage Hash Merkle Root, verify the Merkle Storage Proof is valid.
 ```golang
-	if pv, err := proofverify.VerifyEthStorageProof(key, pvalue, sproof.StorageHash.Bytes(), proofverify.ProofToBytes(sproof.StorageProof[0].Proof)); pv {
-		fmt.Printf("proof is valid!\n")
+	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
+		fmt.Println("account proof and storage proofs are valid!")
 	} else {
-		fmt.Printf("proof is invalid (err %s)\n", err)
+		fmt.Printf("account proof and storage proofs are invalid (err %s)\n", err)
 	}
 ```
 
