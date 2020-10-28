@@ -1,4 +1,4 @@
-package proofverify
+package ethstorageproof
 
 // Initial fork from https://github.com/aergoio/aergo
 
@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/vocdoni/erc20-storage-proof/token"
+	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -33,7 +33,23 @@ var (
 	nilBuf    = make([]byte, 8)
 )
 
-func VerifyEIP1186(proof *token.StorageProof) (bool, error) {
+// VerifyEIP1186 verifies the whole Ethereum proof obtained with eth_getProof method against a StateRoot.
+// It verifies Account proof against StateRoot and all Storage proofs against StorageHash.
+func VerifyEIP1186(proof *StorageProof) (bool, error) {
+	if ok, err := VerifyEthAccountProof(proof); !ok {
+		return false, err
+	}
+	for _, sp := range proof.StorageProof {
+		if ok, err := VerifyEthStorageProof(&sp, proof.StorageHash); !ok {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// VerifyEthAccountProof verifies an Ethereum account proof against the StateRoot.
+// It does not verify the storage proof(s).
+func VerifyEthAccountProof(proof *StorageProof) (bool, error) {
 	var nonce RlpString
 	var balance RlpString
 	var storageroot RlpString
@@ -57,11 +73,28 @@ func VerifyEIP1186(proof *token.StorageProof) (bool, error) {
 	codehash = proof.CodeHash.Bytes()
 	values := RlpList{nonce, balance, storageroot, codehash}
 
-	return VerifyEthStorageProof(proof.Address.Bytes(), values, proof.StateRoot.Bytes(), ProofToBytes(proof.AccountProof))
+	return VerifyProof(proof.Address.Bytes(), values, proof.StateRoot.Bytes(), ProofToBytes(proof.AccountProof))
 }
 
-// VerifyEthStorageProof verifies a Merkle storage proof
-func VerifyEthStorageProof(key []byte, value RlpObject, expectedHash []byte, proof [][]byte) (bool, error) {
+// VerifyEthStorageProof verifies an Ethereum storage proof against the StateRoot.
+// It does not verify the account proof against the Ethereum StateHash.
+func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool, error) {
+	var err error
+	var value RlpString
+	value, err = hex.DecodeString(removeHexPrefix(proof.Value.String()))
+	if err != nil {
+		return false, err
+	}
+	key, err := hex.DecodeString(removeHexPrefix(proof.Key))
+	if err != nil {
+		return false, err
+	}
+	return VerifyProof(key, &value, storageHash.Bytes(), ProofToBytes(proof.Proof))
+}
+
+// VerifyProof verifies an Ethereum Merkle tree storage proof.
+// This function verifies a raw proof.
+func VerifyProof(key []byte, value RlpObject, expectedHash []byte, proof [][]byte) (bool, error) {
 
 	if len(key) == 0 || value == nil || len(proof) == 0 {
 		return false, fmt.Errorf("key, value or proof are empty")
