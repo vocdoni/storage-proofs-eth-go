@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"gitlab.com/vocdoni/go-dvote/util"
 )
 
 var ErrSlotNotFound = errors.New("storage slot not found")
@@ -49,7 +48,7 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 		return err
 	}
 	// load token contract
-	w.tokenAddr, err = hex.DecodeString(util.TrimHex(contractAddress))
+	w.tokenAddr, err = hex.DecodeString(trimHex(contractAddress))
 	if err != nil {
 		return err
 	}
