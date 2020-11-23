@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/vocdoni/erc20-storage-proof/ethstorageproof"
-	contracts "github.com/vocdoni/erc20-storage-proof/ierc20"
+	"github.com/vocdoni/eth-storage-proof/ethstorageproof"
+	contracts "github.com/vocdoni/eth-storage-proof/ierc20"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

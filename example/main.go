@@ -5,8 +5,8 @@ import (
 	"flag"
 	"log"
 
-	"github.com/vocdoni/erc20-storage-proof/ethstorageproof"
-	"github.com/vocdoni/erc20-storage-proof/token"
+	"github.com/vocdoni/eth-storage-proof/ethstorageproof"
+	"github.com/vocdoni/eth-storage-proof/token"
 
 	"github.com/ethereum/go-ethereum/common"
 )

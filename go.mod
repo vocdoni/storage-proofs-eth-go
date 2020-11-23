@@ -1,4 +1,4 @@
-module github.com/vocdoni/erc20-storage-proof
+module github.com/vocdoni/eth-storage-proof
 
 go 1.15
 
