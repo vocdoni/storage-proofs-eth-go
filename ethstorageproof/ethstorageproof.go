@@ -36,9 +36,6 @@ var (
 // VerifyEIP1186 verifies the whole Ethereum proof obtained with eth_getProof method against a StateRoot.
 // It verifies Account proof against StateRoot and all Storage proofs against StorageHash.
 func VerifyEIP1186(proof *StorageProof) (bool, error) {
-	if ok, err := VerifyEthAccountProof(proof); !ok {
-		return false, err
-	}
 	for _, sp := range proof.StorageProof {
 		if ok, err := VerifyEthStorageProof(&sp, proof.StorageHash); !ok {
 			return false, err

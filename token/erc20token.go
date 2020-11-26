@@ -132,20 +132,29 @@ func (w *ERC20Token) GetProof(ctx context.Context, holder common.Address, block 
 	}
 	keys := []string{fmt.Sprintf("%x", slot)}
 	if block == nil {
-		block, err = w.getBlock(ctx, nil)
+		block, err = w.GetBlock(ctx, nil)
 		if err != nil {
 			return nil, err
+		}
+		if block == nil {
+			return nil, fmt.Errorf("cannot fetch block info")
 		}
 	}
 	return w.getProof(ctx, keys, block)
 }
 
 func (w *ERC20Token) getProof(ctx context.Context, keys []string, block *types.Block) (*ethstorageproof.StorageProof, error) {
-	var resp *ethstorageproof.StorageProof
+	if block == nil {
+		return nil, fmt.Errorf("block is nil")
+	}
+	var resp ethstorageproof.StorageProof
 	err := w.rpccli.CallContext(ctx, &resp, "eth_getProof", fmt.Sprintf("0x%x", w.tokenAddr), keys, toBlockNumArg(block.Number()))
-	resp.Height = block.Header().Number
+	if err != nil {
+		return nil, err
+	}
 	resp.StateRoot = block.Root()
-	return resp, err
+	resp.Height = block.Header().Number
+	return &resp, err
 }
 
 // GetIndexSlot tries to find the EVM storage index slot.
@@ -201,6 +210,6 @@ func (w *ERC20Token) GetIndexSlot(holder common.Address) (int, *big.Float, error
 	return index, amount, nil
 }
 
-func (w *ERC20Token) getBlock(ctx context.Context, number *big.Int) (*types.Block, error) {
+func (w *ERC20Token) GetBlock(ctx context.Context, number *big.Int) (*types.Block, error) {
 	return w.ethcli.BlockByNumber(ctx, number)
 }
