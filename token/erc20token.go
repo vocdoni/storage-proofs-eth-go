@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/vocdoni/eth-storage-proof/ethstorageproof"
@@ -66,19 +67,27 @@ func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 	var err error
 
 	if td.Name, err = w.TokenName(); err != nil {
-		return nil, fmt.Errorf("unable to get token data: %s", err)
+		if strings.Contains(err.Error(), "unmarshall an empty string") {
+			td.Name = "unknown-name"
+		} else {
+			return nil, fmt.Errorf("unable to get token name data: %s", err)
+		}
 	}
 
 	if td.Symbol, err = w.TokenSymbol(); err != nil {
-		return nil, fmt.Errorf("unable to get token data: %s", err)
+		if strings.Contains(err.Error(), "unmarshall an empty string") {
+			td.Symbol = "unknown-symbol"
+		} else {
+			return nil, fmt.Errorf("unable to get token symbol data: %s", err)
+		}
 	}
 
 	if td.Decimals, err = w.TokenDecimals(); err != nil {
-		return nil, fmt.Errorf("unable to get token data: %s", err)
+		return nil, fmt.Errorf("unable to get token decimals data: %s", err)
 	}
 
 	if td.TotalSupply, err = w.TokenTotalSupply(); err != nil {
-		return nil, fmt.Errorf("unable to get token data: %s", err)
+		return nil, fmt.Errorf("unable to get token supply data: %s", err)
 	}
 
 	return td, nil
