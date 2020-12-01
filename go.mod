@@ -1,4 +1,4 @@
-module github.com/vocdoni/eth-storage-proof
+module github.com/vocdoni/storage-proof-eth-go
 
 go 1.15
 
