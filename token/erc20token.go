@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// ErrSlotNotFound represents the storage slot not found error
 var ErrSlotNotFound = errors.New("storage slot not found")
 
 // ERC20Token holds a reference to a go-ethereum client,
@@ -27,8 +28,8 @@ var ErrSlotNotFound = errors.New("storage slot not found")
 // It is expected for the ERC20 contract to implement the standard
 // optional ERC20 functions: {name, symbol, decimals, totalSupply}
 type ERC20Token struct {
-	rpccli    *rpc.Client
-	ethcli    *ethclient.Client
+	RPCcli    *rpc.Client
+	Ethcli    *ethclient.Client
 	token     *contracts.TokenCaller
 	tokenAddr []byte
 	networkID *big.Int
@@ -37,14 +38,23 @@ type ERC20Token struct {
 // Init creates and client connection and connects to an ERC20 contract given its address
 func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress string) error {
 	var err error
-	// connect to ethereum endpoint
-	w.rpccli, err = rpc.Dial(web3Endpoint)
-	if err != nil {
-		return err
+	// if web3Endpoint is empty assume the client already exists
+	if web3Endpoint != "" {
+		// connect to ethereum endpoint if required
+		w.RPCcli, err = rpc.Dial(web3Endpoint)
+		if err != nil {
+			return err
+		}
+		w.Ethcli = ethclient.NewClient(w.RPCcli)
+	} else {
+		if w.RPCcli == nil {
+			return fmt.Errorf("RPC node client is not set")
+		}
+		if w.Ethcli == nil {
+			return fmt.Errorf("Ethereum client is not set")
+		}
 	}
-	w.ethcli = ethclient.NewClient(w.rpccli)
-
-	w.networkID, err = w.ethcli.ChainID(ctx)
+	w.networkID, err = w.Ethcli.ChainID(ctx)
 	if err != nil {
 		return err
 	}
@@ -55,19 +65,20 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 	}
 	caddr := common.Address{}
 	caddr.SetBytes(w.tokenAddr)
-	if w.token, err = contracts.NewTokenCaller(caddr, w.ethcli); err != nil {
+	if w.token, err = contracts.NewTokenCaller(caddr, w.Ethcli); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// GetTokenData gets useful data abount the token
 func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 	td := &TokenData{Address: fmt.Sprintf("%x", w.tokenAddr)}
 	var err error
 
 	if td.Name, err = w.TokenName(); err != nil {
-		if strings.Contains(err.Error(), "unmarshall an empty string") {
+		if strings.Contains(err.Error(), "unmarshal an empty string") {
 			td.Name = "unknown-name"
 		} else {
 			return nil, fmt.Errorf("unable to get token name data: %s", err)
@@ -75,7 +86,7 @@ func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 	}
 
 	if td.Symbol, err = w.TokenSymbol(); err != nil {
-		if strings.Contains(err.Error(), "unmarshall an empty string") {
+		if strings.Contains(err.Error(), "unmarshal an empty string") {
 			td.Symbol = "unknown-symbol"
 		} else {
 			return nil, fmt.Errorf("unable to get token symbol data: %s", err)
@@ -157,7 +168,7 @@ func (w *ERC20Token) getProof(ctx context.Context, keys []string, block *types.B
 		return nil, fmt.Errorf("block is nil")
 	}
 	var resp ethstorageproof.StorageProof
-	err := w.rpccli.CallContext(ctx, &resp, "eth_getProof", fmt.Sprintf("0x%x", w.tokenAddr), keys, toBlockNumArg(block.Number()))
+	err := w.RPCcli.CallContext(ctx, &resp, "eth_getProof", fmt.Sprintf("0x%x", w.tokenAddr), keys, toBlockNumArg(block.Number()))
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +205,7 @@ func (w *ERC20Token) GetIndexSlot(holder common.Address) (int, *big.Float, error
 		}
 		// Get Storage
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		value, err := w.ethcli.StorageAt(ctx, addr, slot, nil)
+		value, err := w.Ethcli.StorageAt(ctx, addr, slot, nil)
 		cancel()
 		if err != nil {
 			return index, nil, err
@@ -219,6 +230,7 @@ func (w *ERC20Token) GetIndexSlot(holder common.Address) (int, *big.Float, error
 	return index, amount, nil
 }
 
+// GetBlock gets an Ethereum block given its height
 func (w *ERC20Token) GetBlock(ctx context.Context, number *big.Int) (*types.Block, error) {
-	return w.ethcli.BlockByNumber(ctx, number)
+	return w.Ethcli.BlockByNumber(ctx, number)
 }
