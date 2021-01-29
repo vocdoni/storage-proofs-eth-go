@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vocdoni/eth-storage-proof/ethstorageproof"
-	contracts "github.com/vocdoni/eth-storage-proof/ierc20"
+	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
+	contracts "github.com/vocdoni/storage-proofs-eth-go/ierc20"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

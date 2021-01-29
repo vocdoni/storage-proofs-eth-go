@@ -9,7 +9,7 @@ require (
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/cespare/cp v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
-	github.com/ethereum/go-ethereum v1.9.23
+	github.com/ethereum/go-ethereum v1.9.25
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
 	github.com/go-kit/kit v0.10.0 // indirect
@@ -27,7 +27,7 @@ require (
 	github.com/status-im/keycard-go v0.0.0-20190424133014-d95853db0f48 // indirect
 	github.com/stretchr/testify v1.6.1 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
-	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/sys v0.0.0-20200828194041-157a740278f4 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 )

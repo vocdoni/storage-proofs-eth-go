@@ -12,10 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vocdoni/eth-storage-proof/ethstorageproof"
-	"github.com/vocdoni/eth-storage-proof/token"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
+	"github.com/vocdoni/storage-proofs-eth-go/token"
 )
 
 func main() {
