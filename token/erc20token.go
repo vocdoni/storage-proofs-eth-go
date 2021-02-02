@@ -146,6 +146,12 @@ func (w *ERC20Token) GetProof(ctx context.Context, holder common.Address, block 
 	if err != nil {
 		return nil, err
 	}
+	return w.GetProofWithIndexSlot(ctx, holder, block, islot)
+}
+
+// GetProofWithIndexSlot returns the storage merkle proofs for the acount holder. The index slot is the position on the EVM storage sub-trie for the contract.
+// If index slot is unknown, GetProof() could be used instead to try to find it
+func (w *ERC20Token) GetProofWithIndexSlot(ctx context.Context, holder common.Address, block *types.Block, islot int) (*ethstorageproof.StorageProof, error) {
 	slot, err := GetSlot(holder.Hex(), islot)
 	if err != nil {
 		return nil, err
