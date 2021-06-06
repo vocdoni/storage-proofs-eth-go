@@ -12,7 +12,7 @@ import (
 
 // GetSlot returns the storage key slot for the holder.
 // Position is the index slot (storage index of amount balances map).
-func GetSlot(holder string, position int) ([32]byte, error) {
+func GetMapSlot(holder string, position int) ([32]byte, error) {
 	var slot [32]byte
 	hl, err := hex.DecodeString(trimHex(holder))
 	if err != nil {
@@ -30,6 +30,37 @@ func GetSlot(holder string, position int) ([32]byte, error) {
 	p = common.LeftPadBytes(p, 32)
 
 	hash := crypto.Keccak256(hl, p)
+	copy(slot[:], hash[:32])
+	return slot, err
+}
+
+func HashFromPosition(position string) ([32]byte, error) {
+	var slot [32]byte
+	hl, err := hex.DecodeString(trimHex(position))
+	if err != nil {
+		return slot, err
+	}
+	hl = common.LeftPadBytes(hl, 32)
+	hash := crypto.Keccak256(hl)
+	copy(slot[:], hash[:32])
+	return slot, err
+}
+
+// GetSlot returns the storage key slot for the holder.
+// Position is the index slot (storage index of amount balances map).
+func GetArraySlot(position int) ([32]byte, error) {
+	var slot [32]byte
+	posHex := fmt.Sprintf("%x", position)
+	if len(posHex)%2 == 1 {
+		posHex = "0" + posHex
+	}
+	p, err := hex.DecodeString(posHex)
+	if err != nil {
+		return slot, err
+	}
+	p = common.LeftPadBytes(p, 32)
+
+	hash := crypto.Keccak256(p)
 	copy(slot[:], hash[:32])
 	return slot, err
 }

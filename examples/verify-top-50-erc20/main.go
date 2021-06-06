@@ -32,27 +32,32 @@ func main() {
 	}
 	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder, balance.String())
 
-	slot, amount, err := ts.GetIndexSlot(holderAddr)
+	//slot, amount, err := ts.GetIndexSlot(holderAddr)
+	slot, amount, err := ts.DiscoverMinimeSlot(holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("storage data -> slot: %d amount: %s", slot, amount.String())
 
-	sproof, err := ts.GetProof(context.TODO(), holderAddr, nil)
+	block, err := ts.GetBlock(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+	sproof, err := ts.GetMinimeProofForBlock(holderAddr, block, slot)
+	//	sproof, err := ts.GetMapProof(context.TODO(), holderAddr, nil)
+	if err != nil {
+		log.Fatalf("cannot get proof: %v", err)
+	}
 
-	//sproofBytes, err := json.Marshal(sproof)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Print("%s", sproofBytes)
-
+	/*	sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("%s\n", sproofBytes)
+	*/
 	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
 		log.Printf("account proof is valid!")
 	} else {
-		log.Printf("account proof is invalid (err %s)", err)
+		log.Printf("account proof is invalid (err %v)", err)
 	}
-
 }

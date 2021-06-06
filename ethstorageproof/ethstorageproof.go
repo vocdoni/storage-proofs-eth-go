@@ -36,10 +36,11 @@ var (
 // VerifyEIP1186 verifies the whole Ethereum proof obtained with eth_getProof method against a StateRoot.
 // It verifies Account proof against StateRoot and all Storage proofs against StorageHash.
 func VerifyEIP1186(proof *StorageProof) (bool, error) {
-	for _, sp := range proof.StorageProof {
+	for i, sp := range proof.StorageProof {
 		if ok, err := VerifyEthStorageProof(&sp, proof.StorageHash); !ok {
 			return false, err
 		}
+		fmt.Printf("Proof %d is valid\n", i)
 	}
 	return true, nil
 }
@@ -78,13 +79,22 @@ func VerifyEthAccountProof(proof *StorageProof) (bool, error) {
 func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool, error) {
 	var err error
 	var value RlpString
-	value, err = hex.DecodeString(removeHexPrefix(proof.Value.String()))
-	if err != nil {
-		return false, err
+	var key []byte
+	if proof.Value.String() != "0x0" {
+		value, err = hex.DecodeString(removeHexPrefix(proof.Value.String()))
+		if err != nil {
+			return false, err
+		}
+	} else {
+		value = RlpString{0x0}
 	}
-	key, err := hex.DecodeString(removeHexPrefix(proof.Key))
-	if err != nil {
-		return false, err
+	if proof.Key != "0x0" {
+		key, err = hex.DecodeString(removeHexPrefix(proof.Key))
+		if err != nil {
+			return false, err
+		}
+	} else {
+		return false, fmt.Errorf("proof key is nil (0x0)")
 	}
 	return VerifyProof(key, &value, storageHash.Bytes(), ProofToBytes(proof.Proof))
 }
@@ -92,8 +102,7 @@ func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool,
 // VerifyProof verifies an Ethereum Merkle tree storage proof.
 // This function verifies a raw proof.
 func VerifyProof(key []byte, value RlpObject, expectedHash []byte, proof [][]byte) (bool, error) {
-
-	if len(key) == 0 || value == nil || len(proof) == 0 {
+	if len(key) == 0 || len(proof) == 0 || value == nil {
 		return false, fmt.Errorf("key, value or proof are empty")
 	}
 	key = []byte(hex.EncodeToString(keccak256(key)))
@@ -139,6 +148,10 @@ func VerifyProof(key []byte, value RlpObject, expectedHash []byte, proof [][]byt
 				return false, fmt.Errorf("key path does not match on branch node")
 			}
 			expectedHash = n[k]
+			// If last node is a branchNode, proof of not existing value
+			if len(expectedHash) == 0 && bytes.Equal(valueRlpEncoded, []byte{0x00}) {
+				return true, nil
+			}
 		default:
 			return false, fmt.Errorf("unknown type of node")
 		}

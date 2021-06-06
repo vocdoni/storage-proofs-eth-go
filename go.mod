@@ -28,6 +28,6 @@ require (
 	github.com/stretchr/testify v1.6.1 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
-	golang.org/x/sys v0.0.0-20200828194041-157a740278f4 // indirect
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 )
