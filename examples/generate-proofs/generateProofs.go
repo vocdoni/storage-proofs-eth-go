@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"io/ioutil"
@@ -42,23 +41,23 @@ type HolderProof struct {
 }
 
 func getProofs(web3, contract string, holders []string) {
-	ts := token.ERC20Token{}
-	ts.Init(context.Background(), web3, contract)
-	slot, _, err := ts.DiscoverERC20mapSlot(common.HexToAddress(holders[0]))
+	t, err := token.NewToken(token.TokenTypeMapbased, contract, web3)
+	if err != nil {
+		log.Fatal(err)
+	}
+	slot, _, err := t.DiscoverSlot(common.HexToAddress(holders[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
 	proofs := EthProofs{}
 	proofs.IndexSlot = slot
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	sproof, err := ts.GetMapProof(ctx, common.HexToAddress(holders[0]), nil)
-	cancel()
+	sproof, err := t.GetProof(common.HexToAddress(holders[0]), nil, slot)
 	if err != nil {
 		log.Fatalf("Error fetching storageRoot: %v", err)
 	}
 	proofs.StorageRoot = sproof.StorageHash.Hex()
-	blk, err := ts.GetBlock(context.Background(), nil)
+	blk, err := t.GetBlock(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,9 +71,7 @@ func getProofs(web3, contract string, holders []string) {
 		go func() {
 			wg.Add(1)
 			holderAddr := common.HexToAddress(h)
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-			sproof, err := ts.GetMapProof(ctx, holderAddr, nil)
-			cancel()
+			sproof, err := t.GetProof(holderAddr, blk.Number(), slot)
 			if err != nil {
 				log.Printf("error fetching %s: %v", holderAddr.Hex(), err)
 			} else {

@@ -1,15 +1,15 @@
-package token
+package erc20
 
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"strings"
 
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
+	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	contracts "github.com/vocdoni/storage-proofs-eth-go/ierc20"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,9 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// ErrSlotNotFound represents the storage slot not found error
-var ErrSlotNotFound = errors.New("storage slot not found")
-
 // ERC20Token holds a reference to a go-ethereum client,
 // to an ERC20 like contract and to an ENS.
 // It is expected for the ERC20 contract to implement the standard
@@ -30,7 +27,7 @@ type ERC20Token struct {
 	RPCcli    *rpc.Client
 	Ethcli    *ethclient.Client
 	token     *contracts.TokenCaller
-	tokenAddr []byte
+	TokenAddr []byte
 	networkID *big.Int
 }
 
@@ -58,12 +55,12 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 		return err
 	}
 	// load token contract
-	w.tokenAddr, err = hex.DecodeString(trimHex(contractAddress))
+	w.TokenAddr, err = hex.DecodeString(helpers.TrimHex(contractAddress))
 	if err != nil {
 		return err
 	}
 	caddr := common.Address{}
-	caddr.SetBytes(w.tokenAddr)
+	caddr.SetBytes(w.TokenAddr)
 	if w.token, err = contracts.NewTokenCaller(caddr, w.Ethcli); err != nil {
 		return err
 	}
@@ -73,7 +70,7 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 
 // GetTokenData gets useful data abount the token
 func (w *ERC20Token) GetTokenData() (*TokenData, error) {
-	td := &TokenData{Address: fmt.Sprintf("%x", w.tokenAddr)}
+	td := &TokenData{Address: fmt.Sprintf("%x", w.TokenAddr)}
 	var err error
 
 	if td.Name, err = w.TokenName(); err != nil {
@@ -139,18 +136,25 @@ func (w *ERC20Token) TokenTotalSupply() (*big.Int, error) {
 	return w.token.TotalSupply(nil)
 }
 
-func (w *ERC20Token) getProof(ctx context.Context, keys []string, block *types.Block) (*ethstorageproof.StorageProof, error) {
+func (w *ERC20Token) GetProof(ctx context.Context, keys []string,
+	block *types.Block) (*ethstorageproof.StorageProof, error) {
 	if block == nil {
 		return nil, fmt.Errorf("block is nil")
 	}
 	var resp ethstorageproof.StorageProof
-	err := w.RPCcli.CallContext(ctx, &resp, "eth_getProof", fmt.Sprintf("0x%x", w.tokenAddr), keys, toBlockNumArg(block.Number()))
-	if err != nil {
+	if err := w.RPCcli.CallContext(
+		ctx,
+		&resp,
+		"eth_getProof",
+		fmt.Sprintf("0x%x", w.TokenAddr),
+		keys,
+		helpers.ToBlockNumArg(block.Number()),
+	); err != nil {
 		return nil, err
 	}
 	resp.StateRoot = block.Root()
 	resp.Height = block.Header().Number
-	return &resp, err
+	return &resp, nil
 }
 
 // GetBlock gets an Ethereum block given its height

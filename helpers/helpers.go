@@ -1,4 +1,4 @@
-package token
+package helpers
 
 import (
 	"encoding/hex"
@@ -14,7 +14,7 @@ import (
 // Position is the index slot (storage index of amount balances map).
 func GetMapSlot(holder string, position int) ([32]byte, error) {
 	var slot [32]byte
-	hl, err := hex.DecodeString(trimHex(holder))
+	hl, err := hex.DecodeString(TrimHex(holder))
 	if err != nil {
 		return slot, err
 	}
@@ -36,7 +36,7 @@ func GetMapSlot(holder string, position int) ([32]byte, error) {
 
 func HashFromPosition(position string) ([32]byte, error) {
 	var slot [32]byte
-	hl, err := hex.DecodeString(trimHex(position))
+	hl, err := hex.DecodeString(TrimHex(position))
 	if err != nil {
 		return slot, err
 	}
@@ -65,7 +65,7 @@ func GetArraySlot(position int) ([32]byte, error) {
 	return slot, err
 }
 
-func trimHex(s string) string {
+func TrimHex(s string) string {
 	if len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
 		s = s[2:]
 	}
@@ -75,7 +75,7 @@ func trimHex(s string) string {
 	return s
 }
 
-func toBlockNumArg(number *big.Int) string {
+func ToBlockNumArg(number *big.Int) string {
 	if number == nil {
 		return "latest"
 	}

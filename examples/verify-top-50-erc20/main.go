@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
+	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
 )
 
 func main() {
@@ -15,7 +16,8 @@ func main() {
 	contract := flag.String("contract", "", "ERC20 contract address")
 	holder := flag.String("holder", "", "address of the token holder")
 	flag.Parse()
-	ts := token.ERC20Token{}
+
+	ts := erc20.ERC20Token{}
 	ts.Init(context.Background(), *web3, *contract)
 	tokenData, err := ts.GetTokenData()
 	if err != nil {
@@ -31,9 +33,16 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder, balance.String())
+	if a, _ := balance.Uint64(); a == 0 {
+		log.Println("no amount for holder")
+		return
+	}
 
-	//slot, amount, err := ts.GetIndexSlot(holderAddr)
-	slot, amount, err := ts.DiscoverMinimeSlot(holderAddr)
+	t, err := token.NewToken(token.TokenTypeMapbased, *contract, *web3)
+	if err != nil {
+		log.Fatal(err)
+	}
+	slot, amount, err := t.DiscoverSlot(common.HexToAddress(*holder))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,12 +52,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sproof, err := ts.GetMinimeProofForBlock(holderAddr, block, slot)
-	//	sproof, err := ts.GetMapProof(context.TODO(), holderAddr, nil)
+	sproof, err := t.GetProof(holderAddr, block.Number(), slot)
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
-
 	/*	sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
 		if err != nil {
 			log.Fatal(err)
