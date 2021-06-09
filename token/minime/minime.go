@@ -18,6 +18,12 @@ import (
 // ErrSlotNotFound represents the storage slot not found error
 var ErrSlotNotFound = errors.New("storage slot not found")
 
+const maxIterationsForDiscover = 20
+
+// Minime token stores the whole list of balances an address has had.
+// To this end we need to generate two proofs, one for proving the balance
+// on a specific block and the following proving the next balance stored
+// is either nil (0x0) or a bigger block number.
 type Minime struct {
 	erc20 *erc20.ERC20Token
 }
@@ -36,7 +42,7 @@ func (m *Minime) GetBlock(block *big.Int) (*types.Block, error) {
 func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
 	balance, err := m.erc20.Balance(holder)
 	if err != nil {
-		return -1, nil, fmt.Errorf("Balance: %w", err)
+		return -1, nil, err
 	}
 
 	addr := common.Address{}
@@ -45,7 +51,7 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
 	block := new(big.Int)
 	index := -1
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < maxIterationsForDiscover; i++ {
 		checkPointsSize, err := m.getMinimeArraySize(holder, i)
 		if err != nil {
 			return 0, nil, err
@@ -53,8 +59,6 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
 		if checkPointsSize <= 0 {
 			continue
 		}
-
-		fmt.Printf("found a possible checkPoint array with size %d\n", checkPointsSize)
 
 		if amount, block, _, err = m.getMinimeAtPosition(
 			holder,

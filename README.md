@@ -19,8 +19,9 @@ More info regarding storage proofs:
 **This GoLang module is WIP.**
 
 TODO list:
-- [ ] create an interface around token 
-- [ ] add support for MiniMe tokens
+- [x] create an interface around token 
+- [x] add support for MiniMe tokens
+- [ ] add support for EIP721
 - [ ] explore adding support for other token standard rather than ERC20
 - [ ] write tests
 
@@ -37,39 +38,43 @@ Create a `token.ERC20Token{}` type variable, and initialize it with contract `0x
 
 Fetch the basic token data (decimals, name, etc.) and the balance for the token holder `0x5041ed759dd4afc3a72b8192c143f72f4724081a`.
 ```golang
-	tokenData, err := ts.GetTokenData()
+	tokenData, err := td.GetTokenData()
 	if err != nil {
 		panic(err)
 	}
 	holderAddr := common.HexToAddress("0x5041ed759dd4afc3a72b8192c143f72f4724081a")
 
-	balance, err := ts.Balance(holderAddr)
+	balance, err := td.Balance(holderAddr)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("balance from ERC20 ABI call balanceOf() is %s\n", balance.String())
 ```
 
-For each contract we need to find the **storage index slot**. It depends on the contract implementation, in which position the balances map is defined.
-The storage slot for a specific token holder will be equal to `keccack256( tokenHolder + indexSlot )`.
+For each contract we need to find the **storage index slot**. It depends on the contract implementation, in which storage position the balance is stored.
+For a map based balances ERC20 `map(address)=>uint256`, the storage slot for a specific token holder will be equal to `keccack256( tokenHolder + indexSlot )`.
 ```golang
-	slot, amount, err := ts.GetIndexSlot(holderAddr)
+	tk, err := token.NewToken(token.TokenTypeMapbased, contract, web3)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
+	}
+	slot, balance, err := tk.DiscoverSlot(common.HexToAddress(holders[0]))
+	if err != nil {
+		log.Fatal(err)
 	}
 	fmt.Printf("index slot for the contract is %d\n", slot)
-	fmt.Printf("amount found on the EVM storage is %s\n"), amount.String())
+	fmt.Printf("balance found on the EVM storage is %s\n"), balance.String())
 ```
 
-Now lets get the storage proof for the previous token holder on the last Ethereum block, this is obtained using EIP1186 web3 method `eth_getProof`.
+Now lets get the storage proof for the previous token holder on the last Ethereum block, this is obtained using EIP1186 web3 method `eth_getProof` for the last Ethereum block.
 ```golang
-	sproof, err := ts.GetProof(context.TODO(), holderAddr, nil)
+	sproof, err := tk.GetProof(holderAddr, nil)
 	if err != nil {
 		panic(err)
 	}
 ```
 
-Finally, for a key (keccack256(tokenHolder+indexSlot)), a value (balance) and a Storage Hash Merkle Root, verify the Merkle Storage Proof is valid.
+Finally, for a key, a value (balance) and a Storage Hash Merkle Root, verify the Merkle Storage Proof is valid.
 ```golang
 	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
 		fmt.Println("account proof and storage proofs are valid!")
@@ -77,6 +82,8 @@ Finally, for a key (keccack256(tokenHolder+indexSlot)), a value (balance) and a 
 		fmt.Printf("account proof and storage proofs are invalid (err %s)\n", err)
 	}
 ```
+
+Proofs of **non existing values** can also be generated and verified using the same procedure with the only difference of value equal to `0x0`.
 
 ---
 

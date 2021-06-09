@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// GetSlot returns the storage key slot for the holder.
+// GetMapSlot returns the storage key slot for a holder.
 // Position is the index slot (storage index of amount balances map).
 func GetMapSlot(holder string, position int) ([32]byte, error) {
 	var slot [32]byte
@@ -46,8 +46,8 @@ func HashFromPosition(position string) ([32]byte, error) {
 	return slot, err
 }
 
-// GetSlot returns the storage key slot for the holder.
-// Position is the index slot (storage index of amount balances map).
+// GetArraySlot returns the storage merkle tree key slot for a Solidity array.
+// Position is the index slot (the position of the Array on the source code).
 func GetArraySlot(position int) ([32]byte, error) {
 	var slot [32]byte
 	posHex := fmt.Sprintf("%x", position)

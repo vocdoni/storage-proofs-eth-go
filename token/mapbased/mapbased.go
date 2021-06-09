@@ -18,6 +18,8 @@ import (
 // ErrSlotNotFound represents the storage slot not found error
 var ErrSlotNotFound = errors.New("storage slot not found")
 
+// Mapbased tokens are those where the balance is stored on a map `address => uint256`.
+// Most of ERC20 tokens follows this approach.
 type Mapbased struct {
 	erc20 *erc20.ERC20Token
 }
@@ -45,7 +47,7 @@ func (m *Mapbased) GetProof(holder common.Address,
 	return m.getMapProofWithIndexSlot(ctx, holder, blockData, islot)
 }
 
-// GetMapProofWithIndexSlot returns the storage merkle proofs for the acount holder.
+// getMapProofWithIndexSlot returns the storage merkle proofs for the acount holder.
 // The index slot is the position on the EVM storage sub-trie for the contract.
 // If index slot is unknown, GetProof() could be used instead to try to find it
 func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.Address,
@@ -67,7 +69,7 @@ func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.A
 	return m.erc20.GetProof(ctx, keys, block)
 }
 
-// DiscoverERC20mapSlot tries to find the EVM storage index slot.
+// DiscoverSlot tries to find the EVM storage index slot.
 // A token holder address must be provided in order to have a balance to search and compare.
 // Returns ErrSlotNotFound if the slot cannot be found.
 // If found, returns also the amount stored.
