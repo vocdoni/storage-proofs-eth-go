@@ -15,6 +15,7 @@ func main() {
 	web3 := flag.String("web3", "https://web3.dappnode.net", "web3 RPC endpoint URL")
 	contract := flag.String("contract", "", "ERC20 contract address")
 	holder := flag.String("holder", "", "address of the token holder")
+	contractType := flag.String("type", "mapbased", "ERC20 contract type (mapbased, minime)")
 	flag.Parse()
 
 	ts := erc20.ERC20Token{}
@@ -38,7 +39,17 @@ func main() {
 		return
 	}
 
-	t, err := token.NewToken(token.TokenTypeMapbased, *contract, *web3)
+	var ttype int
+	switch *contractType {
+	case "mapbased":
+		ttype = token.TokenTypeMapbased
+	case "minime":
+		ttype = token.TokenTypeMinime
+	default:
+		log.Fatalf("token type not supported %s", *contractType)
+	}
+
+	t, err := token.NewToken(ttype, *contract, *web3)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,12 +67,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
-	/*	sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("%s\n", sproofBytes)
-	*/
+
 	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
 		log.Printf("account proof is valid!")
 	} else {
