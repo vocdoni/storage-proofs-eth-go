@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"time"
 
@@ -13,6 +12,10 @@ import (
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
+)
+
+const (
+	DiscoveryIterations = 30
 )
 
 // ErrSlotNotFound represents the storage slot not found error
@@ -87,9 +90,10 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])
 
+	ubalance, _ := balance.Uint64()
 	amount := big.NewFloat(0)
 	index := -1
-	for i := 0; i < 20; i++ {
+	for i := 0; i < DiscoveryIterations; i++ {
 		// Prepare storage index
 		slot, err = helpers.GetMapSlot(holder.Hex(), i)
 		if err != nil {
@@ -104,14 +108,12 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 		}
 
 		// Parse balance value
-		value = common.TrimLeftZeroes(value)
-		if _, ok := amount.SetString(fmt.Sprintf("0x%x", value)); !ok {
+		amount, err := helpers.ValueToBalance(fmt.Sprintf("%x", value), int(tokenData.Decimals))
+		if err != nil {
 			continue
 		}
-		amount.Mul(amount, big.NewFloat(1/(math.Pow10(int(tokenData.Decimals)))))
-
 		// Check if balance matches
-		if amount.Cmp(balance) == 0 {
+		if a, _ := amount.Uint64(); a == ubalance {
 			index = i
 			break
 		}

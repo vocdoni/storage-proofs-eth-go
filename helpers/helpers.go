@@ -3,6 +3,7 @@ package helpers
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,6 +33,22 @@ func GetMapSlot(holder string, position int) ([32]byte, error) {
 	hash := crypto.Keccak256(hl, p)
 	copy(slot[:], hash[:32])
 	return slot, err
+}
+
+// ValueToBalance takes a RLP encoded hexadecimal string and the number of decimals and returns
+// the balance as a big.Float number.
+func ValueToBalance(hexValue string, decimals int) (*big.Float, error) {
+	value, err := hex.DecodeString(TrimHex(hexValue))
+	if err != nil {
+		return nil, err
+	}
+	// Parse balance value
+	amount := new(big.Float)
+	value = common.TrimLeftZeroes(value)
+	if _, ok := amount.SetString(fmt.Sprintf("0x%x", value)); !ok {
+		return nil, fmt.Errorf("amount cannot be parsed")
+	}
+	return amount.Mul(amount, big.NewFloat(1/(math.Pow10(decimals)))), nil
 }
 
 func HashFromPosition(position string) ([32]byte, error) {
