@@ -27,7 +27,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 			return fmt.Errorf("key length is wrong (%d)", len(p.Key))
 		}
 		if len(p.Proof) < 4 {
-			return fmt.Errorf("proof lenth is wrong")
+			return fmt.Errorf("proof length is wrong")
 		}
 	}
 	if targetBalance == nil {
@@ -107,11 +107,8 @@ func ParseMinimeValue(hexValue string, decimals int) (*big.Float, *big.Int, *big
 
 	// hexValue could be left zeroes trimed, so we need to expand it to 32 bytes
 	value = common.LeftPadBytes(value, 32)
-
 	mblock := new(big.Int).SetBytes(common.TrimLeftZeroes(value[16:]))
-
 	ibalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", value[:16]), 16)
-
 	balance := new(big.Float)
 	if _, ok := balance.SetString(fmt.Sprintf("0x%x", value[:16])); !ok {
 		return nil, nil, nil, fmt.Errorf("amount cannot be parsed")

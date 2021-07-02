@@ -11,6 +11,8 @@ import (
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
+
+	//"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -71,6 +73,17 @@ func VerifyEthAccountProof(proof *StorageProof) (bool, error) {
 	values := RlpList{nonce, balance, storageroot, codehash}
 
 	return VerifyProof(proof.Address.Bytes(), values, proof.StateRoot.Bytes(), ProofToBytes(proof.AccountProof))
+}
+
+type proofList [][]byte
+
+func (n *proofList) Put(key []byte, value []byte) error {
+	*n = append(*n, value)
+	return nil
+}
+
+func (n *proofList) Get(key []byte) ([]byte, error) {
+	return nil, nil
 }
 
 // VerifyEthStorageProof verifies an Ethereum storage proof against the StateRoot.

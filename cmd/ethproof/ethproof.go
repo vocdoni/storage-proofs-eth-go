@@ -8,10 +8,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
+	"github.com/vocdoni/storage-proofs-eth-go/token/mapbased"
 	"github.com/vocdoni/storage-proofs-eth-go/token/minime"
 )
 
@@ -100,14 +100,26 @@ func main() {
 			log.Fatal(err)
 		}
 	case token.TokenTypeMapbased:
-		balance, err := helpers.ValueToBalance(
+		balance, fullBalance, err := helpers.ValueToBalance(
 			sproof.StorageProof[0].Value.String(),
 			int(tokenData.Decimals),
 		)
 		if err != nil {
 			log.Printf("warning: %v", err)
 		}
-		log.Printf("Mapbased balance on block %s: %s", block.Number().String(), balance.String())
+		log.Printf("mapbased balance on block %s: %s", block.Number().String(), balance.String())
+		if err := mapbased.VerifyProof(
+			common.HexToAddress(*holder),
+			sproof.StorageHash,
+			sproof.StorageProof[0],
+			slot,
+			fullBalance,
+			nil,
+		); err != nil {
+			log.Fatal(err)
+		}
+	default:
+		log.Fatal("token type not supported")
 	}
 
 	sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
@@ -115,10 +127,5 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("%s\n", sproofBytes)
-
-	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
-		log.Printf("account proof is valid!")
-	} else {
-		log.Printf("account proof is invalid: (%v)", err)
-	}
+	log.Println("proof is valid!")
 }

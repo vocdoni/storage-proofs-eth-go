@@ -155,6 +155,12 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 	return m.erc20.GetProof(context.Background(), keys, blockData)
 }
 
+// VerifyProof verifies a minime storage proof
+func (m *Minime) VerifyProof(holder common.Address, storageRoot common.Hash,
+	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance, targetBlock *big.Int) error {
+	return VerifyProof(holder, storageRoot, proofs, mapIndexSlot, targetBalance, targetBlock)
+}
+
 // getMinimeAtPosition returns the data contained in a specific checkpoint array position,
 // returns the balance, the checkpoint block and the merkle tree key slot
 func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,

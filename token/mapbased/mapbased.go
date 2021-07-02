@@ -1,7 +1,9 @@
 package mapbased
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -108,7 +110,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 		}
 
 		// Parse balance value
-		amount, err := helpers.ValueToBalance(fmt.Sprintf("%x", value), int(tokenData.Decimals))
+		amount, _, err := helpers.ValueToBalance(fmt.Sprintf("%x", value), int(tokenData.Decimals))
 		if err != nil {
 			continue
 		}
@@ -122,4 +124,73 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 		return index, nil, ErrSlotNotFound
 	}
 	return index, amount, nil
+}
+
+// VerifyProof verifies a map based storage proof.
+func (m *Mapbased) VerifyProof(holder common.Address, storageRoot common.Hash,
+	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance, targetBlock *big.Int) error {
+	if len(proofs) != 1 {
+		return fmt.Errorf("invalid length of proofs %d", len(proofs))
+	}
+	return VerifyProof(holder, storageRoot, proofs[0], mapIndexSlot, targetBalance, targetBlock)
+}
+
+// VerifyProof verifies a map based storage proof.
+// The targetBalance parameter is the full balance value, without decimals.
+func VerifyProof(holder common.Address, storageRoot common.Hash,
+	proof ethstorageproof.StorageResult, mapIndexSlot int, targetBalance, targetBlock *big.Int) error {
+	// Sanity checks
+	if proof.Value == nil {
+		return fmt.Errorf("value is nil")
+	}
+	if len(proof.Key) != 64 {
+		return fmt.Errorf("key length is wrong (%d)", len(proof.Key))
+	}
+	if len(proof.Proof) < 4 {
+		return fmt.Errorf("proof length is wrong")
+	}
+	if targetBalance == nil {
+		return fmt.Errorf("target balance is nil")
+	}
+
+	// Check proof key matches with holder address
+	keySlot, err := helpers.GetMapSlot(holder.Hex(), mapIndexSlot)
+	if err != nil {
+		return err
+	}
+	proofKey, err := hex.DecodeString(helpers.TrimHex(proof.Key))
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(keySlot[:], proofKey) {
+		return fmt.Errorf("proof key and leafData do not match (%x != %x)", keySlot, proofKey)
+	}
+
+	// Check value balances matches
+	proofValue, err := hex.DecodeString(helpers.TrimHex(proof.Value.String()))
+	if err != nil {
+		return err
+	}
+	proofBalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", proofValue), 16)
+	if targetBalance.Cmp(proofBalance) != 0 {
+		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
+			proofBalance.String(), targetBalance.String())
+	}
+
+	// Check merkle proof against the storage root hash
+	valid, err := ethstorageproof.VerifyEthStorageProof(
+		&ethstorageproof.StorageResult{
+			Key:   proof.Key,
+			Proof: proof.Proof,
+			Value: proof.Value,
+		},
+		storageRoot,
+	)
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return fmt.Errorf("proof is not valid")
+	}
+	return nil
 }

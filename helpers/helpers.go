@@ -37,18 +37,19 @@ func GetMapSlot(holder string, position int) ([32]byte, error) {
 
 // ValueToBalance takes a RLP encoded hexadecimal string and the number of decimals and returns
 // the balance as a big.Float number.
-func ValueToBalance(hexValue string, decimals int) (*big.Float, error) {
+func ValueToBalance(hexValue string, decimals int) (*big.Float, *big.Int, error) {
 	value, err := hex.DecodeString(TrimHex(hexValue))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Parse balance value
 	amount := new(big.Float)
 	value = common.TrimLeftZeroes(value)
 	if _, ok := amount.SetString(fmt.Sprintf("0x%x", value)); !ok {
-		return nil, fmt.Errorf("amount cannot be parsed")
+		return nil, nil, fmt.Errorf("amount cannot be parsed")
 	}
-	return amount.Mul(amount, big.NewFloat(1/(math.Pow10(decimals)))), nil
+	ibalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", value), 16)
+	return amount.Mul(amount, big.NewFloat(1/(math.Pow10(decimals)))), ibalance, nil
 }
 
 func HashFromPosition(position string) ([32]byte, error) {
