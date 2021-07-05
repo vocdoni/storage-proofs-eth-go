@@ -143,7 +143,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	if proof.Value == nil {
 		return fmt.Errorf("value is nil")
 	}
-	if len(proof.Key) != 64 {
+	if len(proof.Key) != 32 {
 		return fmt.Errorf("key length is wrong (%d)", len(proof.Key))
 	}
 	if len(proof.Proof) < 4 {
@@ -158,12 +158,8 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	if err != nil {
 		return err
 	}
-	proofKey, err := hex.DecodeString(helpers.TrimHex(proof.Key))
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(keySlot[:], proofKey) {
-		return fmt.Errorf("proof key and leafData do not match (%x != %x)", keySlot, proofKey)
+	if !bytes.Equal(keySlot[:], proof.Key) {
+		return fmt.Errorf("proof key and leafData do not match (%x != %x)", keySlot, proof.Key)
 	}
 
 	// Check value balances matches
