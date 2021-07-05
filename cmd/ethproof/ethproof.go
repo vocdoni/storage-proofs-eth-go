@@ -89,6 +89,7 @@ func main() {
 		log.Printf("balance on block %s: %s", block.String(), balance.String())
 		log.Printf("hex balance: %x\n", fullBalance.Bytes())
 		log.Printf("storage root: %x\n", sproof.StorageHash)
+
 		if err := minime.VerifyProof(
 			common.HexToAddress(*holder),
 			sproof.StorageHash,
