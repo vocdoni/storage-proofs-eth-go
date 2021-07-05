@@ -4,16 +4,57 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
 	"github.com/vocdoni/storage-proofs-eth-go/token/minime"
 )
+
+// MemDB is an ethdb.KeyValueReader implementation which is not thread safe and
+// assumes that all keys are common.Hash.
+type MemDB struct {
+	kvs map[common.Hash][]byte
+}
+
+func NewMemDB() *MemDB {
+	return &MemDB{
+		kvs: make(map[common.Hash][]byte),
+	}
+}
+
+func (m *MemDB) Has(key []byte) (bool, error) {
+	var h common.Hash
+	copy(h[:], key)
+	_, ok := m.kvs[h]
+	return ok, nil
+}
+
+func (m *MemDB) Get(key []byte) ([]byte, error) {
+	var h common.Hash
+	copy(h[:], key)
+	value, ok := m.kvs[h]
+	if ok {
+		return value, nil
+	} else {
+		return nil, nil
+	}
+}
+
+func (m *MemDB) Put(key []byte, value []byte) error {
+	var h common.Hash
+	copy(h[:], key)
+	m.kvs[h] = value
+	return nil
+}
 
 func main() {
 	web3 := flag.String("web3", "https://web3.dappnode.net", "web3 RPC endpoint URL")
@@ -76,6 +117,42 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
+	// DBG BEGIN
+	for _, proof := range sproof.StorageProof {
+		// proofJSON, _ := json.MarshalIndent(proof, "", "  ")
+		// fmt.Printf("DBG\n%v\n", string(proofJSON))
+
+		proofDB := NewMemDB()
+		for _, node := range proof.Proof {
+			value, err := hexutil.Decode(node)
+			if err != nil {
+				log.Fatal(err)
+			}
+			key := crypto.Keccak256(value)
+			// fmt.Printf("%v -> %v\n", hexutil.Encode(key), hexutil.Encode(value))
+			// var decValue interface{}
+			// err = rlp.DecodeBytes(value, &decValue)
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+			// for _, v := range decValue.([]interface{}) {
+			// 	fmt.Printf("> %v\n", hexutil.Encode(v.([]byte)))
+			// }
+			proofDB.Put(key, value)
+		}
+		key, err := hexutil.Decode(fmt.Sprintf("0x%s", proof.Key))
+		if err != nil {
+			log.Fatal(err)
+		}
+		path := crypto.Keccak256(key)
+		fmt.Printf("DBG key: %v\n", hexutil.Encode(path))
+		fmt.Printf("WantHash: %v\n", sproof.StorageHash)
+
+		res, err := trie.VerifyProof(sproof.StorageHash, path, proofDB)
+		fmt.Printf("VerifyProof: %v, %v\n", res, err)
+	}
+	// DBG END
+	return
 
 	switch ttype {
 	case token.TokenTypeMinime:
