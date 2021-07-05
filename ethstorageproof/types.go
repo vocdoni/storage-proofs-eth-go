@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -25,12 +24,11 @@ func (b Bytes) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (b *Bytes) UnmarshalText(input []byte) error {
-	dec := make([]byte, len(input)/2)
 	if bytes.HasPrefix(input, []byte("0x")) {
 		input = input[2:]
 	}
+	dec := make([]byte, len(input)/2)
 	if _, err := hex.Decode(dec, input); err != nil {
-		// fmt.Printf("DBG Bytes.UnmarshalText: %v\n", err)
 		return err
 	} else {
 		*b = dec
@@ -118,6 +116,5 @@ func (m *MemDB) Put(key []byte, value []byte) error {
 	var h common.Hash
 	copy(h[:], key)
 	m.kvs[h] = value
-	fmt.Printf("DBG %v -> %v\n", hex.EncodeToString(key), hex.EncodeToString(value))
 	return nil
 }

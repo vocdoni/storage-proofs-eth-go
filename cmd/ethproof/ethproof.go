@@ -2,16 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
@@ -81,43 +76,6 @@ func main() {
 		log.Fatalf("cannot get proof: %v", err)
 	}
 
-	// DBG BEGIN
-	for _, proof := range sproof.StorageProof[:1] {
-		proofJSON, _ := json.MarshalIndent(proof, "", "  ")
-		fmt.Printf("DBG\n%v\n", string(proofJSON))
-
-		proofDB := ethstorageproof.NewMemDB()
-		for _, node := range proof.Proof {
-			// value, err := hexutil.Decode(node)
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			key := crypto.Keccak256(node)
-			// fmt.Printf("%v -> %v\n", hexutil.Encode(key), hexutil.Encode(value))
-			// var decValue interface{}
-			// err = rlp.DecodeBytes(value, &decValue)
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// for _, v := range decValue.([]interface{}) {
-			// 	fmt.Printf("> %v\n", hexutil.Encode(v.([]byte)))
-			// }
-			proofDB.Put(key, node)
-		}
-		// key, err := hexutil.Decode(fmt.Sprintf("0x%s", proof.Key))
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		path := crypto.Keccak256(proof.Key)
-		fmt.Printf("DBG key: %v\n", hexutil.Encode(path))
-		fmt.Printf("WantHash: %v\n", sproof.StorageHash)
-
-		res, err := trie.VerifyProof(sproof.StorageHash, path, proofDB)
-		fmt.Printf("VerifyProof: %v, %v\n", res, err)
-	}
-	// DBG END
-	return
-
 	switch ttype {
 	case token.TokenTypeMinime:
 		balance, fullBalance, block, err := minime.ParseMinimeValue(
@@ -130,12 +88,6 @@ func main() {
 		log.Printf("balance on block %s: %s", block.String(), balance.String())
 		log.Printf("hex balance: %x\n", fullBalance.Bytes())
 		log.Printf("storage root: %x\n", sproof.StorageHash)
-
-		sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("%s\n", sproofBytes)
 
 		if err := minime.VerifyProof(
 			common.HexToAddress(*holder),
