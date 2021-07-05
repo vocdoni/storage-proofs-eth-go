@@ -1,11 +1,41 @@
 package ethstorageproof
 
 import (
+	"bytes"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
+
+// Bytes marshals/unmarshals as a JSON string with 0x prefix.
+// The empty slice marshals as "0x".
+type Bytes []byte
+
+// MarshalText implements encoding.TextMarshaler
+func (b Bytes) MarshalText() ([]byte, error) {
+	result := make([]byte, len(b)*2+2)
+	copy(result, `0x`)
+	hex.Encode(result[2:], b)
+	return result, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (b *Bytes) UnmarshalText(input []byte) error {
+	dec := make([]byte, len(input)/2)
+	if bytes.HasPrefix(input, []byte("0x")) {
+		input = input[2:]
+	}
+	if _, err := hex.Decode(dec, input); err != nil {
+		fmt.Printf("DBG Bytes.UnmarshalText: %v\n", err)
+		return err
+	} else {
+		*b = dec
+		return nil
+	}
+}
 
 type StorageProof struct {
 	StateRoot    common.Hash     `json:"stateRoot"`
@@ -20,7 +50,7 @@ type StorageProof struct {
 }
 
 type StorageResult struct {
-	Key   string       `json:"key"`
+	Key   Bytes        `json:"key"`
 	Value *hexutil.Big `json:"value"`
 	Proof []string     `json:"proof"`
 }
@@ -31,12 +61,14 @@ type MemDB struct {
 	kvs map[common.Hash][]byte
 }
 
+// NewMemDB creates a new empty MemDB
 func NewMemDB() *MemDB {
 	return &MemDB{
 		kvs: make(map[common.Hash][]byte),
 	}
 }
 
+// Has returns true if the MemBD contains the key
 func (m *MemDB) Has(key []byte) (bool, error) {
 	var h common.Hash
 	copy(h[:], key)
@@ -44,6 +76,7 @@ func (m *MemDB) Has(key []byte) (bool, error) {
 	return ok, nil
 }
 
+// Get returns the value of the key, or nit if it's not found
 func (m *MemDB) Get(key []byte) ([]byte, error) {
 	var h common.Hash
 	copy(h[:], key)
@@ -55,6 +88,7 @@ func (m *MemDB) Get(key []byte) ([]byte, error) {
 	}
 }
 
+// Put sets or updates the value at key
 func (m *MemDB) Put(key []byte, value []byte) error {
 	var h common.Hash
 	copy(h[:], key)

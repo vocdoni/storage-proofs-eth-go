@@ -23,7 +23,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 		if p.Value == nil {
 			return fmt.Errorf("value is nil")
 		}
-		if len(p.Key) != 64 {
+		if len(p.Key) != 32 {
 			return fmt.Errorf("key length is wrong (%d)", len(p.Key))
 		}
 		if len(p.Proof) < 4 {
@@ -123,7 +123,7 @@ func ParseMinimeValue(hexValue string, decimals int) (*big.Float, *big.Int, *big
 // CheckMinimeKeys checks the validity of a storage proof key (RLP hexadecimal string) for a
 // specific token holder address. As MiniMe includes checkpoints and each one adds +1 to
 // the key, there is a maximum hardcoded tolerance of 2^16 positions for the key.
-func CheckMinimeKeys(hexKey1, hexKey2 string, holder common.Address, mapIndexSlot int) error {
+func CheckMinimeKeys(key1, key2 []byte, holder common.Address, mapIndexSlot int) error {
 	mapSlot, err := helpers.GetMapSlot(holder.Hex(), mapIndexSlot)
 	if err != nil {
 		return err
@@ -134,17 +134,17 @@ func CheckMinimeKeys(hexKey1, hexKey2 string, holder common.Address, mapIndexSlo
 	}
 	holderMapUindex := new(big.Int).SetBytes(vf[:]).Uint64()
 
-	rawKey1, err := hex.DecodeString(helpers.TrimHex(hexKey1))
-	if err != nil {
-		return err
-	}
-	key1Uindex := new(big.Int).SetBytes(rawKey1).Uint64()
+	// rawKey1, err := hex.DecodeString(hexKey1)
+	// if err != nil {
+	// 	return err
+	// }
+	key1Uindex := new(big.Int).SetBytes(key1).Uint64()
 
-	rawKey2, err := hex.DecodeString(helpers.TrimHex(hexKey2))
-	if err != nil {
-		return err
-	}
-	if key1Uindex+1 != new(big.Int).SetBytes(rawKey2).Uint64() {
+	// rawKey2, err := hex.DecodeString(hexKey2)
+	// if err != nil {
+	// 	return err
+	// }
+	if key1Uindex+1 != new(big.Int).SetBytes(key2).Uint64() {
 		return fmt.Errorf("keys are not consecutive")
 	}
 

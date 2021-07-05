@@ -19,43 +19,6 @@ import (
 	"github.com/vocdoni/storage-proofs-eth-go/token/minime"
 )
 
-// MemDB is an ethdb.KeyValueReader implementation which is not thread safe and
-// assumes that all keys are common.Hash.
-type MemDB struct {
-	kvs map[common.Hash][]byte
-}
-
-func NewMemDB() *MemDB {
-	return &MemDB{
-		kvs: make(map[common.Hash][]byte),
-	}
-}
-
-func (m *MemDB) Has(key []byte) (bool, error) {
-	var h common.Hash
-	copy(h[:], key)
-	_, ok := m.kvs[h]
-	return ok, nil
-}
-
-func (m *MemDB) Get(key []byte) ([]byte, error) {
-	var h common.Hash
-	copy(h[:], key)
-	value, ok := m.kvs[h]
-	if ok {
-		return value, nil
-	} else {
-		return nil, nil
-	}
-}
-
-func (m *MemDB) Put(key []byte, value []byte) error {
-	var h common.Hash
-	copy(h[:], key)
-	m.kvs[h] = value
-	return nil
-}
-
 func main() {
 	web3 := flag.String("web3", "https://web3.dappnode.net", "web3 RPC endpoint URL")
 	contract := flag.String("contract", "", "ERC20 contract address")
@@ -119,10 +82,10 @@ func main() {
 	}
 	// DBG BEGIN
 	for _, proof := range sproof.StorageProof {
-		// proofJSON, _ := json.MarshalIndent(proof, "", "  ")
-		// fmt.Printf("DBG\n%v\n", string(proofJSON))
+		proofJSON, _ := json.MarshalIndent(proof, "", "  ")
+		fmt.Printf("DBG\n%v\n", string(proofJSON))
 
-		proofDB := NewMemDB()
+		proofDB := ethstorageproof.NewMemDB()
 		for _, node := range proof.Proof {
 			value, err := hexutil.Decode(node)
 			if err != nil {
@@ -140,11 +103,11 @@ func main() {
 			// }
 			proofDB.Put(key, value)
 		}
-		key, err := hexutil.Decode(fmt.Sprintf("0x%s", proof.Key))
-		if err != nil {
-			log.Fatal(err)
-		}
-		path := crypto.Keccak256(key)
+		// key, err := hexutil.Decode(fmt.Sprintf("0x%s", proof.Key))
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		path := crypto.Keccak256(proof.Key)
 		fmt.Printf("DBG key: %v\n", hexutil.Encode(path))
 		fmt.Printf("WantHash: %v\n", sproof.StorageHash)
 
@@ -152,7 +115,6 @@ func main() {
 		fmt.Printf("VerifyProof: %v, %v\n", res, err)
 	}
 	// DBG END
-	return
 
 	switch ttype {
 	case token.TokenTypeMinime:
