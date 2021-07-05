@@ -139,7 +139,7 @@ func (w *ERC20Token) TokenTotalSupply() (*big.Int, error) {
 // GetProof calls the eth_getProof web3 method
 func (w *ERC20Token) GetProof(ctx context.Context, keys []string,
 	block *types.Block) (*ethstorageproof.StorageProof, error) {
-	fmt.Printf("DBG GetProof keys: %v\n", keys)
+	// fmt.Printf("DBG GetProof keys: %v\n", keys)
 	if block == nil {
 		return nil, fmt.Errorf("block is nil")
 	}

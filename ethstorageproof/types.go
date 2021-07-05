@@ -3,6 +3,7 @@ package ethstorageproof
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -29,7 +30,7 @@ func (b *Bytes) UnmarshalText(input []byte) error {
 		input = input[2:]
 	}
 	if _, err := hex.Decode(dec, input); err != nil {
-		fmt.Printf("DBG Bytes.UnmarshalText: %v\n", err)
+		// fmt.Printf("DBG Bytes.UnmarshalText: %v\n", err)
 		return err
 	} else {
 		*b = dec
@@ -37,11 +38,35 @@ func (b *Bytes) UnmarshalText(input []byte) error {
 	}
 }
 
+type SliceBytes [][]byte
+
+// MarshalText implements encoding.TextMarshaler
+func (s SliceBytes) MarshalJSON() ([]byte, error) {
+	bs := make([]Bytes, len(s))
+	for i, b := range s {
+		bs[i] = b
+	}
+	return json.Marshal(bs)
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SliceBytes) UnmarshalJSON(data []byte) error {
+	var bs []Bytes
+	if err := json.Unmarshal(data, &bs); err != nil {
+		return err
+	}
+	*s = make([][]byte, len(bs))
+	for i, b := range bs {
+		(*s)[i] = b
+	}
+	return nil
+}
+
 type StorageProof struct {
 	StateRoot    common.Hash     `json:"stateRoot"`
 	Height       *big.Int        `json:"height"`
 	Address      common.Address  `json:"address"`
-	AccountProof []string        `json:"accountProof"`
+	AccountProof SliceBytes      `json:"accountProof"`
 	Balance      *hexutil.Big    `json:"balance"`
 	CodeHash     common.Hash     `json:"codeHash"`
 	Nonce        hexutil.Uint64  `json:"nonce"`
@@ -52,7 +77,7 @@ type StorageProof struct {
 type StorageResult struct {
 	Key   Bytes        `json:"key"`
 	Value *hexutil.Big `json:"value"`
-	Proof []string     `json:"proof"`
+	Proof SliceBytes   `json:"proof"`
 }
 
 // MemDB is an ethdb.KeyValueReader implementation which is not thread safe and
@@ -93,5 +118,6 @@ func (m *MemDB) Put(key []byte, value []byte) error {
 	var h common.Hash
 	copy(h[:], key)
 	m.kvs[h] = value
+	fmt.Printf("DBG %v -> %v\n", hex.EncodeToString(key), hex.EncodeToString(value))
 	return nil
 }

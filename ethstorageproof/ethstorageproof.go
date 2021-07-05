@@ -4,9 +4,7 @@ package ethstorageproof
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
-	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -54,7 +52,7 @@ func VerifyEthAccountProof(proof *StorageProof) (bool, error) {
 		return false, err
 	}
 
-	return VerifyProof2(proof.StateRoot, proof.Address.Bytes(), value, ProofToBytes(proof.AccountProof))
+	return VerifyProof(proof.StateRoot, proof.Address.Bytes(), value, proof.AccountProof)
 }
 
 // VerifyEthStorageProof verifies an Ethereum storage proof against the StateRoot.
@@ -70,10 +68,10 @@ func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool,
 			return false, err
 		}
 	}
-	return VerifyProof2(storageHash, proof.Key, value, ProofToBytes(proof.Proof))
+	return VerifyProof(storageHash, proof.Key, value, proof.Proof)
 }
 
-func VerifyProof2(rootHash common.Hash, key []byte, value []byte, proof [][]byte) (bool, error) {
+func VerifyProof(rootHash common.Hash, key []byte, value []byte, proof [][]byte) (bool, error) {
 	proofDB := NewMemDB()
 	for _, node := range proof {
 		key := crypto.Keccak256(node)
@@ -85,83 +83,6 @@ func VerifyProof2(rootHash common.Hash, key []byte, value []byte, proof [][]byte
 	if err != nil {
 		return false, err
 	}
-	// fmt.Printf("DBG VerifyProof2 (%v) -> %v %v\n", value, res, err)
+	// fmt.Printf("DBG VerifyProof (%v) -> %v %v\n", value, res, err)
 	return bytes.Equal(value, res), nil
-}
-
-func RlpEncode(o RlpObject) []byte {
-	return o.RlpEncode()
-}
-
-type RlpObject interface {
-	RlpEncode() []byte
-}
-
-type RlpString []byte
-
-func (s RlpString) RlpEncode() []byte {
-	var rlpBytes []byte
-	l := len(s)
-	if l == 1 && s[0] < 0x80 {
-		rlpBytes = append(rlpBytes, s[0])
-	} else {
-		rlpBytes = append(rlpBytes, rlpLength(l, 0x80)...)
-		rlpBytes = append(rlpBytes, s...)
-	}
-	return rlpBytes
-}
-
-type RlpList []RlpObject
-
-func (l RlpList) RlpEncode() []byte {
-	var rlpBytes []byte
-	for _, item := range l {
-		rlpBytes = append(rlpBytes, item.RlpEncode()...)
-	}
-	length := rlpLength(len(rlpBytes), 0xc0)
-	return append(length, rlpBytes...)
-}
-
-func rlpLength(dataLen int, offset byte) []byte {
-	if dataLen < 56 {
-		return []byte{byte(dataLen) + offset}
-	} else if dataLen < math.MaxInt32 {
-		var output []byte
-		b := toBinary(dataLen)
-		output = append(output, byte(len(b)+int(offset)+55))
-		return append(output, b...)
-	} else {
-		return []byte{}
-	}
-}
-
-func toBinary(d int) []byte {
-	var b []byte
-	for d > 0 {
-		b = append([]byte{byte(d % 256)}, b...)
-		d /= 256
-	}
-	return b
-}
-
-func removeHexPrefix(s string) string {
-	if len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
-		s = s[2:]
-	}
-	if len(s)&1 == 1 {
-		s = "0" + s
-	}
-	return s
-}
-
-func ProofToBytes(proof []string) [][]byte {
-	var r [][]byte
-	for _, n := range proof {
-		d, err := hex.DecodeString(removeHexPrefix(n))
-		if err != nil {
-			return [][]byte{}
-		}
-		r = append(r, d)
-	}
-	return r
 }

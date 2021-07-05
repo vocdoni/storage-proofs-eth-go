@@ -80,18 +80,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
+
 	// DBG BEGIN
-	for _, proof := range sproof.StorageProof {
+	for _, proof := range sproof.StorageProof[:1] {
 		proofJSON, _ := json.MarshalIndent(proof, "", "  ")
 		fmt.Printf("DBG\n%v\n", string(proofJSON))
 
 		proofDB := ethstorageproof.NewMemDB()
 		for _, node := range proof.Proof {
-			value, err := hexutil.Decode(node)
-			if err != nil {
-				log.Fatal(err)
-			}
-			key := crypto.Keccak256(value)
+			// value, err := hexutil.Decode(node)
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+			key := crypto.Keccak256(node)
 			// fmt.Printf("%v -> %v\n", hexutil.Encode(key), hexutil.Encode(value))
 			// var decValue interface{}
 			// err = rlp.DecodeBytes(value, &decValue)
@@ -101,7 +102,7 @@ func main() {
 			// for _, v := range decValue.([]interface{}) {
 			// 	fmt.Printf("> %v\n", hexutil.Encode(v.([]byte)))
 			// }
-			proofDB.Put(key, value)
+			proofDB.Put(key, node)
 		}
 		// key, err := hexutil.Decode(fmt.Sprintf("0x%s", proof.Key))
 		// if err != nil {
@@ -115,6 +116,7 @@ func main() {
 		fmt.Printf("VerifyProof: %v, %v\n", res, err)
 	}
 	// DBG END
+	return
 
 	switch ttype {
 	case token.TokenTypeMinime:
@@ -128,6 +130,13 @@ func main() {
 		log.Printf("balance on block %s: %s", block.String(), balance.String())
 		log.Printf("hex balance: %x\n", fullBalance.Bytes())
 		log.Printf("storage root: %x\n", sproof.StorageHash)
+
+		sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("%s\n", sproofBytes)
+
 		if err := minime.VerifyProof(
 			common.HexToAddress(*holder),
 			sproof.StorageHash,
@@ -148,12 +157,6 @@ func main() {
 		}
 		log.Printf("Mapbased balance on block %s: %s", block.Number().String(), balance.String())
 	}
-
-	sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("%s\n", sproofBytes)
 
 	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
 		log.Printf("account proof is valid!")
