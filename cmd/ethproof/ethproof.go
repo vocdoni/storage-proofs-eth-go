@@ -80,7 +80,7 @@ func main() {
 	switch ttype {
 	case token.TokenTypeMinime:
 		balance, fullBalance, block, err := minime.ParseMinimeValue(
-			sproof.StorageProof[0].Value.String(),
+			sproof.StorageProof[0].Value,
 			int(tokenData.Decimals),
 		)
 		if err != nil {
@@ -101,7 +101,7 @@ func main() {
 		}
 	case token.TokenTypeMapbased:
 		balance, fullBalance, err := helpers.ValueToBalance(
-			sproof.StorageProof[0].Value.String(),
+			sproof.StorageProof[0].Value,
 			int(tokenData.Decimals),
 		)
 		if err != nil {

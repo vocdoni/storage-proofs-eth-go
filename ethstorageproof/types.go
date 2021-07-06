@@ -2,7 +2,6 @@ package ethstorageproof
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -11,36 +10,34 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-// BytesHex marshals/unmarshals as a JSON string in hex with 0x prefix.  The empty
-// slice marshals as "0x".
-type BytesHex []byte
+// QuantityBytes marshals/unmarshals as a JSON string in hex with 0x prefix encoded
+// as a QUANTITY.  The empty slice marshals as "0x0".
+type QuantityBytes []byte
 
 // MarshalText implements encoding.TextMarshaler
-func (b BytesHex) MarshalText() ([]byte, error) {
-	result := make([]byte, len(b)*2+2)
-	copy(result, `0x`)
-	hex.Encode(result[2:], b)
-	return result, nil
+func (q QuantityBytes) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("0x%v",
+		new(big.Int).SetBytes(q).Text(16))), nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (b *BytesHex) UnmarshalText(input []byte) error {
+func (q *QuantityBytes) UnmarshalText(input []byte) error {
 	input = bytes.TrimPrefix(input, []byte("0x"))
-	dec := make([]byte, len(input)/2)
-	if _, err := hex.Decode(dec, input); err != nil {
-		return err
+	v, ok := new(big.Int).SetString(string(input), 16)
+	if !ok {
+		return fmt.Errorf("invalid hex input")
 	}
-	*b = dec
+	*q = v.Bytes()
 	return nil
 }
 
-// SliceBytesHex marshals/unmarshals as a JSON vector of strings with in hex with
+// SliceData marshals/unmarshals as a JSON vector of strings with in hex with
 // 0x prefix.
-type SliceBytesHex [][]byte
+type SliceData [][]byte
 
 // MarshalText implements encoding.TextMarshaler
-func (s SliceBytesHex) MarshalJSON() ([]byte, error) {
-	bs := make([]BytesHex, len(s))
+func (s SliceData) MarshalJSON() ([]byte, error) {
+	bs := make([]hexutil.Bytes, len(s))
 	for i, b := range s {
 		bs[i] = b
 	}
@@ -48,8 +45,8 @@ func (s SliceBytesHex) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *SliceBytesHex) UnmarshalJSON(data []byte) error {
-	var bs []BytesHex
+func (s *SliceData) UnmarshalJSON(data []byte) error {
+	var bs []hexutil.Bytes
 	if err := json.Unmarshal(data, &bs); err != nil {
 		return err
 	}
@@ -60,26 +57,60 @@ func (s *SliceBytesHex) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// StorageProof allows unmarshaling the object returned by `eth_getProof`:
-// https://eips.ethereum.org/EIPS/eip-1186
+// StorageProof allows unmarshaling the object returned by `eth_getProof`.
+// From https://eips.ethereum.org/EIPS/eip-1186:
+//
+//  Parameters
+//
+//     DATA, 20 Bytes - address of the account.
+//     ARRAY, 32 Bytes - array of storage-keys which should be proofed and
+//       included. See eth_getStorageAt
+//     QUANTITY|TAG - integer block number, or the string "latest" or
+//       "earliest", see the default block parameter
+//
+// Returns
+//
+// Object - A account object:
+//
+//     balance: QUANTITY - the balance of the account. See eth_getBalance
+//     codeHash: DATA, 32 Bytes - hash of the code of the account. For a simple
+//       Account without code it will return
+//       "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+//     nonce: QUANTITY, - nonce of the account. See eth_getTransactionCount
+//     storageHash: DATA, 32 Bytes - SHA3 of the StorageRoot. All storage will
+//       deliver a MerkleProof starting with this rootHash.
+//     accountProof: ARRAY - Array of rlp-serialized MerkleTree-Nodes, starting
+//       with the stateRoot-Node, following the path of the SHA3 (address) as
+//       key.
+//
+//     storageProof: ARRAY - Array of storage-entries as requested. Each entry is a object with these properties:
+//         key: QUANTITY - the requested storage key
+//         value: QUANTITY - the storage value
+//         proof: ARRAY - Array of rlp-serialized MerkleTree-Nodes, starting
+//           with the storageHash-Node, following the path of the SHA3 (key) as
+//           path.
+//
+// NOTE: QUANTITY is supposed to follow this spec:
+// https://infura.io/docs/ethereum#section/Value-encoding/Quantity but
+// go-ethereum sometimes gives the string without the `0x` prefix
 type StorageProof struct {
-	StateRoot    common.Hash     `json:"stateRoot"`
 	Height       *big.Int        `json:"height"`
 	Address      common.Address  `json:"address"`
-	AccountProof SliceBytesHex   `json:"accountProof"`
 	Balance      *hexutil.Big    `json:"balance"`
 	CodeHash     common.Hash     `json:"codeHash"`
 	Nonce        hexutil.Uint64  `json:"nonce"`
+	StateRoot    common.Hash     `json:"stateRoot"`
 	StorageHash  common.Hash     `json:"storageHash"`
+	AccountProof SliceData       `json:"accountProof"`
 	StorageProof []StorageResult `json:"storageProof"`
 }
 
 // StorageResult is an object from StorageProof that contains a proof of
 // storage.
 type StorageResult struct {
-	Key   BytesHex      `json:"key"`
-	Value *hexutil.Big  `json:"value"`
-	Proof SliceBytesHex `json:"proof"`
+	Key   QuantityBytes `json:"key"`
+	Value QuantityBytes `json:"value"`
+	Proof SliceData     `json:"proof"`
 }
 
 // MemDB is an ethdb.KeyValueReader implementation which is not thread safe and
