@@ -122,7 +122,7 @@ func main() {
 		log.Fatal("token type not supported")
 	}
 
-	sproofBytes, err := json.MarshalIndent(sproof.StorageProof, "", " ")
+	sproofBytes, err := json.MarshalIndent(sproof, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
