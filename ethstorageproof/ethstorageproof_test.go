@@ -1,18 +1,19 @@
 package ethstorageproof
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func TestVerify(t *testing.T) {
 	tests := []struct {
 		key    []byte
-		value  []byte
+		value  interface{}
 		proof  [][]byte
 		verify bool
 	}{
@@ -44,7 +45,7 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			toBytes("0x0000000000000000000000000000000000000000000000000000000000000000"),
-			toBytes("0x9"),
+			uint32(0x9),
 			proofToBytes([]string{
 				"0xf8518080a05d2423f2a53dd794285a39f2c7ba5c0c24cba719d05e3bdd1f5eefae445b34358080808080808080a01ec473dfa012cb440907fa4f2c34be3e733c92430d98a48831700bc8ab159f5d8080808080",
 
@@ -91,108 +92,22 @@ func TestVerify(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		if vp, err := VerifyProof(tt.key, RlpString(tt.value), keccak256(tt.proof[0]), tt.proof); vp != tt.verify {
-			t.Errorf("testcase %d: want %v, got %v (err: %s)\n", i, tt.verify, !tt.verify, err)
+		value, err := rlp.EncodeToBytes(tt.value)
+		if err != nil {
+			panic(err)
+		}
+		if vp, err := VerifyProof(crypto.Keccak256Hash(tt.proof[0]), tt.key,
+			value, tt.proof); vp != tt.verify {
+			t.Errorf("testcase %d: want %v, got %v (err: %v)\n", i, tt.verify, !tt.verify, err)
 		}
 	}
 }
 
-func TestDecodeRlpTrieNode(t *testing.T) {
-	tests := []struct {
-		data   []byte
-		length int
-		index  int
-		expect []byte
-	}{
-		{
-			[]byte{0xc5, 0x83, 'c', 'a', 't', 0x80},
-			2,
-			-1,
-			[]byte{},
-		},
-		{
-			[]byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'},
-			2,
-			-1,
-			[]byte{},
-		},
-		{
-			[]byte{0xC0},
-			0,
-			-1,
-			[]byte{},
-		},
-		{
-			[]byte{0xd1, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q'},
-			17,
-			-1,
-			[]byte{},
-		},
-		{
-			[]byte{0xd1, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r'},
-			0,
-			-1,
-			[]byte{},
-		},
-		{
-			[]byte{0xd1, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 0x80},
-			17,
-			-1,
-			[]byte{},
-		},
-		{
-			[]byte{0xd1, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 0x80},
-			17,
-			0,
-			[]byte{'a'},
-		},
-		{
-			[]byte{0xd1, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 0x80},
-			17,
-			16,
-			[]byte{},
-		},
-		{
-			[]byte{0xd3, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 0x82, 'm', 'n', 'o', 'p', 0x80, 'x'},
-			17,
-			12,
-			[]byte{'m', 'n'},
-		},
+func removeHexPrefix(s string) string {
+	if strings.HasPrefix(s, "0x") {
+		return s[2:]
 	}
-	for i, tt := range tests {
-		n := decodeRlpTrieNode(tt.data)
-		if len(n) != tt.length {
-			t.Errorf("testcase %d: want %d, got %d\n", i, tt.length, len(n))
-			continue
-		}
-		if tt.index != -1 {
-			if !bytes.Equal(tt.expect, n[tt.index]) {
-				t.Errorf("testcase %d: want %v, got %v\n", i, tt.expect, n[tt.index])
-			}
-		}
-	}
-}
-
-func TestKeccak256(t *testing.T) {
-	tests := []struct {
-		msg string
-		h   string
-	}{
-		{
-			"abc",
-			"4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45",
-		},
-		{
-			"aergo",
-			"e98bb03ab37161f8bbfe131f711dcccf3002a9cd9ec31bbd52edf181f7ab09a0",
-		},
-	}
-	for _, tt := range tests {
-		h := keccak256Hex([]byte(tt.msg))
-		if tt.h != h {
-			t.Errorf("want %s, got %s\n", tt.h, h)
-		}
-	}
+	return s
 }
 
 func toBytes(s string) []byte {
@@ -210,101 +125,6 @@ func proofToBytes(proof []string) [][]byte {
 		r = append(r, d)
 	}
 	return r
-}
-
-func Test_rlpEncode(t *testing.T) {
-	l := "Lorem ipsum dolor sit amet, consectetur adipisicing elit"
-	type args struct {
-		o RlpObject
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			`"dog"`,
-			args{RlpString("dog")},
-			[]byte{0x83, 'd', 'o', 'g'},
-		},
-		{
-			`["cat","dog"]`,
-			args{RlpList{RlpString("cat"), RlpString("dog")}},
-			[]byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'},
-		},
-		{
-			`""`,
-			args{RlpString("")},
-			[]byte{0x80},
-		},
-		{
-			`[]`,
-			args{RlpList{}},
-			[]byte{0xc0},
-		},
-		{
-			`\x00`,
-			args{RlpString{0x00}},
-			[]byte{0x00},
-		},
-		{
-			`\x0f`,
-			args{RlpString{0x0f}},
-			[]byte{0x0f},
-		},
-		{
-			`\x0f\x00`,
-			args{RlpString{0x04, 0x00}},
-			[]byte{0x82, 0x04, 0x00},
-		},
-		{
-			`[[],[[]],[[],[[]]]]`,
-			args{RlpList{RlpList{}, RlpList{RlpList{}}, RlpList{RlpList{}, RlpList{RlpList{}}}}},
-			[]byte{0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0},
-		},
-		{
-			fmt.Sprintf(`"%s"`, l),
-			args{RlpString(l)},
-			append([]byte{0xb8, 0x38}, []byte(l)...),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := RlpEncode(tt.args.o); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("rlpEncode() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_rlpLength(t *testing.T) {
-	type args struct {
-		dataLen int
-		offset  byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			"string-1024",
-			args{1024, 0x80},
-			[]byte{0xb9, 0x04, 0x00},
-		},
-		{
-			"list-1024",
-			args{1024, 0xc0},
-			[]byte{0xf9, 0x04, 0x00},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := rlpLength(tt.args.dataLen, tt.args.offset); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("rlpLength() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 var EIP1186Proof = `
@@ -350,15 +170,15 @@ func Test_eipProof(t *testing.T) {
 		t.Error(err)
 	}
 	if ok, err := VerifyEIP1186(&sp); !ok {
-		t.Errorf("proof must be valid but it is invalid: (%s)", err)
+		t.Errorf("proof must be valid but it is invalid: (%v)", err)
 	}
 	if ok, err := VerifyEthAccountProof(&sp); !ok {
-		t.Errorf("proof must be valid but it is invalid: (%s)", err)
+		t.Errorf("proof must be valid but it is invalid: (%v)", err)
 	}
 	if ok, err := VerifyEthStorageProof(&sp.StorageProof[0], sp.StorageHash); !ok {
-		t.Errorf("proof must be valid but it is invalid: (%s)", err)
+		t.Errorf("proof must be valid but it is invalid: (%v)", err)
 	}
-	sp.StorageProof[0].Key = "49c4c8b2db715e9f7e1d3306b9f6860a389635dfb3943db23f1005544a50fbb2"
+	sp.StorageProof[0].Key = toBytes("0x49c4c8b2db715e9f7e1d3306b9f6860a389635dfb3943db23f1005544a50fbb2")
 	if ok, _ := VerifyEIP1186(&sp); ok {
 		t.Errorf("proof must be invalid but it is valid")
 	}

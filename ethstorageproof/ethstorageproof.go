@@ -5,6 +5,7 @@ package ethstorageproof
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -47,7 +48,7 @@ func VerifyEIP1186(proof *StorageProof) (bool, error) {
 // It does not verify the storage proof(s).
 func VerifyEthAccountProof(proof *StorageProof) (bool, error) {
 	value, err := rlp.EncodeToBytes([]interface{}{
-		proof.Nonce, proof.Balance, proof.StorageHash, proof.CodeHash})
+		proof.Nonce, proof.Balance.ToInt(), proof.StorageHash, proof.CodeHash})
 	if err != nil {
 		return false, err
 	}
@@ -83,6 +84,6 @@ func VerifyProof(rootHash common.Hash, key []byte, value []byte, proof [][]byte)
 	if err != nil {
 		return false, err
 	}
-	// fmt.Printf("DBG VerifyProof (%v) -> %v %v\n", value, res, err)
+	fmt.Printf("DBG VerifyProof (%v) -> %v %v\n", value, res, err)
 	return bytes.Equal(value, res), nil
 }
