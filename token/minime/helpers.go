@@ -1,7 +1,6 @@
 package minime
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -43,7 +42,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	}
 
 	// Extract balance and block from the minime proof
-	_, proof0Balance, proof0Block, err := ParseMinimeValue(proofs[0].Value.String(), 1)
+	_, proof0Balance, proof0Block, err := ParseMinimeValue(proofs[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -62,8 +61,8 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 
 	// Check if the proof1 is a proof of non existence (so proof0 is the last checkpoint).
 	// If not the last, then check the target block is
-	if proofs[1].Value.String() != "0x0" {
-		_, _, proof1Block, err := ParseMinimeValue(proofs[1].Value.String(), 1)
+	if len(proofs[1].Value) != 0 {
+		_, _, proof1Block, err := ParseMinimeValue(proofs[1].Value, 1)
 		if err != nil {
 			return err
 		}
@@ -99,12 +98,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 //
 // Returns the float balance (taking into account the decimals), the full integer without taking into
 // account the decimals and the Ethereum block number for the checkpoint.
-func ParseMinimeValue(hexValue string, decimals int) (*big.Float, *big.Int, *big.Int, error) {
-	value, err := hex.DecodeString(helpers.TrimHex(hexValue))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
+func ParseMinimeValue(value []byte, decimals int) (*big.Float, *big.Int, *big.Int, error) {
 	// hexValue could be left zeroes trimed, so we need to expand it to 32 bytes
 	value = common.LeftPadBytes(value, 32)
 	mblock := new(big.Int).SetBytes(common.TrimLeftZeroes(value[16:]))

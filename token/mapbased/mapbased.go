@@ -3,7 +3,6 @@ package mapbased
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -110,7 +109,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 		}
 
 		// Parse balance value
-		amount, _, err := helpers.ValueToBalance(fmt.Sprintf("%x", value), int(tokenData.Decimals))
+		amount, _, err := helpers.ValueToBalance(value, int(tokenData.Decimals))
 		if err != nil {
 			continue
 		}
@@ -163,11 +162,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	}
 
 	// Check value balances matches
-	proofValue, err := hex.DecodeString(helpers.TrimHex(proof.Value.String()))
-	if err != nil {
-		return err
-	}
-	proofBalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", proofValue), 16)
+	proofBalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", proof.Value), 16)
 	if targetBalance.Cmp(proofBalance) != 0 {
 		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
 			proofBalance.String(), targetBalance.String())

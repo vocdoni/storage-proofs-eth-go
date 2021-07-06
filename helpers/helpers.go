@@ -37,11 +37,7 @@ func GetMapSlot(holder string, position int) ([32]byte, error) {
 
 // ValueToBalance takes a RLP encoded hexadecimal string and the number of decimals and returns
 // the balance as a big.Float number.
-func ValueToBalance(hexValue string, decimals int) (*big.Float, *big.Int, error) {
-	value, err := hex.DecodeString(TrimHex(hexValue))
-	if err != nil {
-		return nil, nil, err
-	}
+func ValueToBalance(value []byte, decimals int) (*big.Float, *big.Int, error) {
 	// Parse balance value
 	amount := new(big.Float)
 	value = common.TrimLeftZeroes(value)

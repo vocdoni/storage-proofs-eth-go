@@ -193,7 +193,7 @@ func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
 		return nil, nil, nil, err
 	}
 
-	balance, _, mblock, err := ParseMinimeValue(fmt.Sprintf("%x", value), int(token.Decimals))
+	balance, _, mblock, err := ParseMinimeValue(value, int(token.Decimals))
 	if err != nil {
 		return nil, nil, nil, err
 	}

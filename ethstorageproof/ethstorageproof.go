@@ -5,7 +5,6 @@ package ethstorageproof
 import (
 	"bytes"
 	"errors"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -72,9 +71,8 @@ func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool,
 	var err error
 	var value []byte
 
-	v := big.Int(*proof.Value)
-	if v.BitLen() != 0 {
-		value, err = rlp.EncodeToBytes(&v)
+	if len(proof.Value) != 0 {
+		value, err = rlp.EncodeToBytes(proof.Value)
 		if err != nil {
 			return false, err
 		}
@@ -85,6 +83,10 @@ func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool,
 // VerifyProof verifies that the path generated from key, following the nodes
 // in proof leads to a leaf with value, where the hashes are correct up to the
 // rootHash.
+// WARNING: When the value is not found, `eth_getProof` will return "0x0" at
+// the StorageProof `value` field.  In order to verify the proof of non
+// existence, you must set `value` to nil, *not* the RLP encoding of 0 or null
+// (which would be 0x80).
 func VerifyProof(rootHash common.Hash, key []byte, value []byte, proof [][]byte) (bool, error) {
 	proofDB := NewMemDB()
 	for _, node := range proof {
