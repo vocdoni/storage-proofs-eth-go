@@ -10,12 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-// Bytes marshals/unmarshals as a JSON string with 0x prefix.
-// The empty slice marshals as "0x".
-type Bytes []byte
+// BytesHex marshals/unmarshals as a JSON string in hex with 0x prefix.  The empty
+// slice marshals as "0x".
+type BytesHex []byte
 
 // MarshalText implements encoding.TextMarshaler
-func (b Bytes) MarshalText() ([]byte, error) {
+func (b BytesHex) MarshalText() ([]byte, error) {
 	result := make([]byte, len(b)*2+2)
 	copy(result, `0x`)
 	hex.Encode(result[2:], b)
@@ -23,7 +23,7 @@ func (b Bytes) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (b *Bytes) UnmarshalText(input []byte) error {
+func (b *BytesHex) UnmarshalText(input []byte) error {
 	if bytes.HasPrefix(input, []byte("0x")) {
 		input = input[2:]
 	}
@@ -36,11 +36,13 @@ func (b *Bytes) UnmarshalText(input []byte) error {
 	}
 }
 
-type SliceBytes [][]byte
+// SliceBytesHex marshals/unmarshals as a JSON vector of strings with in hex with
+// 0x prefix.
+type SliceBytesHex [][]byte
 
 // MarshalText implements encoding.TextMarshaler
-func (s SliceBytes) MarshalJSON() ([]byte, error) {
-	bs := make([]Bytes, len(s))
+func (s SliceBytesHex) MarshalJSON() ([]byte, error) {
+	bs := make([]BytesHex, len(s))
 	for i, b := range s {
 		bs[i] = b
 	}
@@ -48,8 +50,8 @@ func (s SliceBytes) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *SliceBytes) UnmarshalJSON(data []byte) error {
-	var bs []Bytes
+func (s *SliceBytesHex) UnmarshalJSON(data []byte) error {
+	var bs []BytesHex
 	if err := json.Unmarshal(data, &bs); err != nil {
 		return err
 	}
@@ -60,11 +62,13 @@ func (s *SliceBytes) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// StorageProof allows unmarshaling the object returned by `eth_getProof`:
+// https://eips.ethereum.org/EIPS/eip-1186
 type StorageProof struct {
 	StateRoot    common.Hash     `json:"stateRoot"`
 	Height       *big.Int        `json:"height"`
 	Address      common.Address  `json:"address"`
-	AccountProof SliceBytes      `json:"accountProof"`
+	AccountProof SliceBytesHex   `json:"accountProof"`
 	Balance      *hexutil.Big    `json:"balance"`
 	CodeHash     common.Hash     `json:"codeHash"`
 	Nonce        hexutil.Uint64  `json:"nonce"`
@@ -72,10 +76,12 @@ type StorageProof struct {
 	StorageProof []StorageResult `json:"storageProof"`
 }
 
+// StorageResult is an object from StorageProof that contains a proof of
+// storage.
 type StorageResult struct {
-	Key   Bytes        `json:"key"`
-	Value *hexutil.Big `json:"value"`
-	Proof SliceBytes   `json:"proof"`
+	Key   BytesHex      `json:"key"`
+	Value *hexutil.Big  `json:"value"`
+	Proof SliceBytesHex `json:"proof"`
 }
 
 // MemDB is an ethdb.KeyValueReader implementation which is not thread safe and

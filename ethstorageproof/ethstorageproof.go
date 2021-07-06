@@ -5,7 +5,6 @@ package ethstorageproof
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -72,6 +71,9 @@ func VerifyEthStorageProof(proof *StorageResult, storageHash common.Hash) (bool,
 	return VerifyProof(storageHash, proof.Key, value, proof.Proof)
 }
 
+// VerifyProof verifies that the path generated from key, following the nodes
+// in proof leads to a leaf with value, where the hashes are correct up to the
+// rootHash.
 func VerifyProof(rootHash common.Hash, key []byte, value []byte, proof [][]byte) (bool, error) {
 	proofDB := NewMemDB()
 	for _, node := range proof {
@@ -84,6 +86,5 @@ func VerifyProof(rootHash common.Hash, key []byte, value []byte, proof [][]byte)
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("DBG VerifyProof (%v) -> %v %v\n", value, res, err)
 	return bytes.Equal(value, res), nil
 }
