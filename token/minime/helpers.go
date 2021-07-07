@@ -13,7 +13,8 @@ import (
 // VerifyProof verifies a Minime storage proof.
 // The targetBalance parameter is the full balance value, without decimals.
 func VerifyProof(holder common.Address, storageRoot common.Hash,
-	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance, targetBlock *big.Int) error {
+	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance,
+	targetBlock *big.Int) error {
 	// Sanity checks
 	if len(proofs) != 2 {
 		return fmt.Errorf("wrong length of storage proofs")
@@ -51,7 +52,8 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	}
 	// Check balance matches with the provided balance
 	if proof0Balance.Cmp(targetBalance) != 0 {
-		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)", proof0Balance.String(), targetBalance.String())
+		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
+			proof0Balance.String(), targetBalance.String())
 	}
 
 	// Proof 0 checkpoint block should be smaller or equal than target block
@@ -93,11 +95,13 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	return nil
 }
 
-// ParseMinimeValue takes the RLP encoded (hexadecimal string) value from EIP1186 and splits into
-// balance and block number (checkpoint). If decimals are unkown use 1.
+// ParseMinimeValue takes the RLP encoded (hexadecimal string) value from
+// EIP1186 and splits into balance and block number (checkpoint). If decimals
+// are unknown use 1.
 //
-// Returns the float balance (taking into account the decimals), the full integer without taking into
-// account the decimals and the Ethereum block number for the checkpoint.
+// Returns the float balance (taking into account the decimals), the full
+// integer without taking into account the decimals and the Ethereum block
+// number for the checkpoint.
 func ParseMinimeValue(value []byte, decimals int) (*big.Float, *big.Int, *big.Int, error) {
 	// hexValue could be left zeroes trimed, so we need to expand it to 32 bytes
 	value = common.LeftPadBytes(value, 32)

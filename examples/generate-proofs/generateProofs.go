@@ -68,8 +68,8 @@ func getProofs(web3, contract string, holders []string) {
 		if len(h) < 20 {
 			continue
 		}
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			holderAddr := common.HexToAddress(h)
 			sproof, err := t.GetProof(holderAddr, blk.Number(), slot)
 			if err != nil {
@@ -93,5 +93,5 @@ func getProofs(web3, contract string, holders []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ioutil.WriteFile("proofs.json", p, os.FileMode(0644))
+	ioutil.WriteFile("proofs.json", p, os.FileMode(0o644))
 }

@@ -19,10 +19,12 @@ const (
 type Token interface {
 	Init(tokenAddress, web3endpoint string) error
 	DiscoverSlot(holder common.Address) (int, *big.Float, error)
-	GetProof(holder common.Address, block *big.Int, indexSlot int) (*ethstorageproof.StorageProof, error)
+	GetProof(holder common.Address, block *big.Int,
+		indexSlot int) (*ethstorageproof.StorageProof, error)
 	GetBlock(block *big.Int) (*types.Block, error)
-	VerifyProof(holder common.Address, storageRoot common.Hash, proofs []ethstorageproof.StorageResult,
-		indexSlot int, targetBalance, targetBlock *big.Int) error
+	VerifyProof(holder common.Address, storageRoot common.Hash,
+		proofs []ethstorageproof.StorageResult, indexSlot int, targetBalance,
+		targetBlock *big.Int) error
 }
 
 func NewToken(tokenType int, address, web3endpoint string) (Token, error) {

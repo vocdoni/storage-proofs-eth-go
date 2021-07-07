@@ -14,5 +14,6 @@ type TokenData struct {
 }
 
 func (t *TokenData) String() string {
-	return fmt.Sprintf(`{"name":%s,"symbol":%s,"decimals":%s,"totalSupply":%s}`, t.Name, t.Symbol, string(t.Decimals), t.TotalSupply.String())
+	return fmt.Sprintf(`{"name":%s,"symbol":%s,"decimals":%s,"totalSupply":%s}`,
+		t.Name, t.Symbol, string(t.Decimals), t.TotalSupply.String())
 }

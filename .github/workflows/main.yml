@@ -1,0 +1,36 @@
+---
+
+name: Main
+
+on: [push, pull_request]
+
+jobs:
+  go-tests:
+    runs-on: self-hosted
+    container:
+      image: golang:1.16.5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
+          $(go env GOPATH)/bin/golangci-lint run --timeout=5m -c .golangci.yml
+
+      - name: Go test
+        run: |
+          # we run vet in another step
+          go test -vet=off -timeout=1m ./...
+          # -race can easily make the crypto stuff 10x slower
+          go test -vet=off -timeout=15m -race -covermode atomic -coverprofile=covprofile ./...
+
+      - name: Go analyze
+        run: |
+          diff -u <(echo -n) <(gofmt -s -d $(git ls-files '*.go'))
+          go vet ./...
+          curl -L https://github.com/dominikh/go-tools/releases/download/2021.1/staticcheck_linux_amd64.tar.gz | tar -xzf -
+          ./staticcheck/staticcheck ./...
