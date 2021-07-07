@@ -85,7 +85,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 	}
 	balance, err := m.erc20.Balance(holder)
 	if err != nil {
-		return -1, nil, fmt.Errorf("Balance: %w", err)
+		return -1, nil, fmt.Errorf("balance: %w", err)
 	}
 
 	addr := common.Address{}
@@ -127,7 +127,8 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 
 // VerifyProof verifies a map based storage proof.
 func (m *Mapbased) VerifyProof(holder common.Address, storageRoot common.Hash,
-	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance, targetBlock *big.Int) error {
+	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance,
+	targetBlock *big.Int) error {
 	if len(proofs) != 1 {
 		return fmt.Errorf("invalid length of proofs %d", len(proofs))
 	}

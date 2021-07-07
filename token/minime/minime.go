@@ -48,7 +48,7 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])
 	amount := big.NewFloat(0)
-	block := new(big.Int)
+	var block *big.Int
 	index := -1
 
 	for i := 0; i < maxIterationsForDiscover; i++ {
@@ -157,7 +157,8 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 
 // VerifyProof verifies a minime storage proof
 func (m *Minime) VerifyProof(holder common.Address, storageRoot common.Hash,
-	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance, targetBlock *big.Int) error {
+	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance,
+	targetBlock *big.Int) error {
 	return VerifyProof(holder, storageRoot, proofs, mapIndexSlot, targetBalance, targetBlock)
 }
 

@@ -11,22 +11,36 @@ import (
 )
 
 func TestEthProof(t *testing.T) {
-	sp := testStorageProof{}
-	if err := json.Unmarshal([]byte(proof1), &sp); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		proof  string
+		verify bool
+	}{
+		{proof1, true},
+		{proof2, true},
 	}
+	for i, tt := range tests {
+		sp := testStorageProof{}
+		if err := json.Unmarshal([]byte(tt.proof), &sp); err != nil {
+			t.Fatal(err)
+		}
 
-	balance, err := hex.DecodeString(sp.Balance)
-	if err != nil {
-		t.Fatal(err)
+		balance, err := hex.DecodeString(sp.Balance)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = VerifyProof(sp.Address,
+			sp.Root,
+			sp.StorageProofs,
+			sp.Slot,
+			new(big.Int).SetBytes(balance),
+			new(big.Int).SetUint64(sp.Block),
+		)
+		if tt.verify && err != nil {
+			t.Errorf("can't verify proof %v: %v", i, err)
+		} else if !tt.verify && err == nil {
+			t.Errorf("shouldn't verify proof %v", i)
+		}
 	}
-	VerifyProof(sp.Address,
-		sp.Root,
-		sp.StorageProofs,
-		sp.Slot,
-		new(big.Int).SetBytes(balance),
-		new(big.Int).SetUint64(sp.Block),
-	)
 }
 
 type testStorageProof struct {
@@ -38,6 +52,7 @@ type testStorageProof struct {
 	StorageProofs []ethstorageproof.StorageResult `json:"storageProofs"`
 }
 
+//nolint:lll
 var proof1 = string(`{
 "address": "0x75ebce762600f8d2171c42e1f1af07c1fbf39832",
 "root": "0x9e38fc8a3d67075aed963f0be7fea6d0a145eacefe9c1e4deccfd927e3ea5c36",
@@ -72,11 +87,12 @@ var proof1 = string(`{
 ]
 }`)
 
-var proof2Wrong = string(`{
+//nolint:lll
+var proof2 = string(`{
 "address": "0xbd9c69654b8f3e5978dfd138b00cb0be29f28ccf",
 "root": "0x1778ec12b19b5c6036edbe69e9a54dddc397813f292ce276aabb3fc4184abe4c",
 "balance": "0293ca8fbc70ffaffde577",
-"block":"12743076",
+"block":12743076,
 "slot": 8,
 "storageProofs":[
  {

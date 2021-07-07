@@ -4,7 +4,6 @@ package ethstorageproof
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -12,29 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-const (
-	shortNode  = 2
-	branchNode = 17
-	hexChar    = "0123456789abcdef"
-)
-
-type (
-	rlpNode   [][]byte
-	keyStream struct {
-		*bytes.Buffer
-	}
-)
-
-var (
-	errDecode = errors.New("storage proof decode error")
-	lenBuf    = make([]byte, 8)
-	nilBuf    = make([]byte, 8)
-)
-
-// VerifyEIP1186 verifies the whole Ethereum proof obtained with eth_getProof method against a StateRoot.
-// It verifies Account proof against StateRoot and all Storage proofs against StorageHash.
+// VerifyEIP1186 verifies the whole Ethereum proof obtained with eth_getProof
+// method against a StateRoot.  It verifies Account proof against StateRoot and
+// all Storage proofs against StorageHash.
 func VerifyEIP1186(proof *StorageProof) (bool, error) {
 	for _, sp := range proof.StorageProof {
+		sp := sp
 		if ok, err := VerifyEthStorageProof(&sp, proof.StorageHash); !ok {
 			return false, err
 		}
@@ -46,23 +28,13 @@ func VerifyEIP1186(proof *StorageProof) (bool, error) {
 // It does not verify the storage proof(s).
 func VerifyEthAccountProof(proof *StorageProof) (bool, error) {
 	value, err := rlp.EncodeToBytes([]interface{}{
-		proof.Nonce, proof.Balance.ToInt(), proof.StorageHash, proof.CodeHash})
+		proof.Nonce, proof.Balance.ToInt(), proof.StorageHash, proof.CodeHash,
+	})
 	if err != nil {
 		return false, err
 	}
 
 	return VerifyProof(proof.StateRoot, proof.Address.Bytes(), value, proof.AccountProof)
-}
-
-type proofList [][]byte
-
-func (n *proofList) Put(key []byte, value []byte) error {
-	*n = append(*n, value)
-	return nil
-}
-
-func (n *proofList) Get(key []byte) ([]byte, error) {
-	return nil, nil
 }
 
 // VerifyEthStorageProof verifies an Ethereum storage proof against the StateRoot.

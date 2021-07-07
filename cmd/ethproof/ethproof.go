@@ -24,7 +24,9 @@ func main() {
 	flag.Parse()
 
 	ts := erc20.ERC20Token{}
-	ts.Init(context.Background(), *web3, *contract)
+	if err := ts.Init(context.Background(), *web3, *contract); err != nil {
+		log.Fatal(err)
+	}
 	tokenData, err := ts.GetTokenData()
 	if err != nil {
 		log.Fatal(err)

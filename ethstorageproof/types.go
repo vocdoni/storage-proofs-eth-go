@@ -83,7 +83,8 @@ func (s *SliceData) UnmarshalJSON(data []byte) error {
 //       with the stateRoot-Node, following the path of the SHA3 (address) as
 //       key.
 //
-//     storageProof: ARRAY - Array of storage-entries as requested. Each entry is a object with these properties:
+//     storageProof: ARRAY - Array of storage-entries as requested. Each entry
+//       is a object with these properties:
 //         key: QUANTITY - the requested storage key
 //         value: QUANTITY - the storage value
 //         proof: ARRAY - Array of rlp-serialized MerkleTree-Nodes, starting
@@ -144,8 +145,7 @@ func (m *MemDB) Get(key []byte) ([]byte, error) {
 }
 
 // Put sets or updates the value at key
-func (m *MemDB) Put(key []byte, value []byte) error {
+func (m *MemDB) Put(key []byte, value []byte) {
 	h := common.BytesToHash(key)
 	m.kvs[h] = value
-	return nil
 }

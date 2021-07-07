@@ -47,6 +47,7 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 			return fmt.Errorf("RPC node client is not set")
 		}
 		if w.Ethcli == nil {
+			//lint:ignore ST1005 "Ethereum" is a proper noun, so it's capitalized
 			return fmt.Errorf("Ethereum client is not set")
 		}
 	}
