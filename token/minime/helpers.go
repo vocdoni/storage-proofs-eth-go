@@ -42,10 +42,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	}
 
 	// Extract balance and block from the minime proof
-	_, proof0Balance, proof0Block, err := ParseMinimeValue(proofs[0].Value, 1)
-	if err != nil {
-		return err
-	}
+	_, proof0Balance, proof0Block := ParseMinimeValue(proofs[0].Value, 1)
 	if proof0Balance == nil || proof0Block == nil {
 		return fmt.Errorf("cannot extract balance or block from the minime proof")
 	}
@@ -63,10 +60,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	// Check if the proof1 is a proof of non existence (so proof0 is the last checkpoint).
 	// If not the last, then check the target block is
 	if len(proofs[1].Value) != 0 {
-		_, _, proof1Block, err := ParseMinimeValue(proofs[1].Value, 1)
-		if err != nil {
-			return err
-		}
+		_, _, proof1Block := ParseMinimeValue(proofs[1].Value, 1)
 		if proof0Block.Cmp(proof1Block) >= 0 { // p0 >= p1
 			return fmt.Errorf("proof 1 block is behind proof0 block")
 		}
@@ -94,44 +88,40 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	return nil
 }
 
-// ParseMinimeValue takes the RLP encoded (hexadecimal string) value from
-// EIP1186 and splits into balance and block number (checkpoint). If decimals
-// are unknown use 1.
+// ParseMinimeValue takes the value field from EIP1186 and splits into balance
+// and block number (checkpoint). If decimals are unknown use 1.
 //
-// Returns the float balance (taking into account the decimals), the full
-// integer without taking into account the decimals and the Ethereum block
-// number for the checkpoint.
-func ParseMinimeValue(value []byte, decimals int) (*big.Rat, *big.Int, *big.Int, error) {
+// Returns the balance as big.Rat (considering the decimals), big.Int (not
+// considering the decimals) and the Ethereum block number for the checkpoint.
+func ParseMinimeValue(value []byte, decimals int) (*big.Rat, *big.Int, *big.Int) {
 	// hexValue could be left zeroes trimed, so we need to expand it to 32 bytes
 	value = common.LeftPadBytes(value, 32)
 	mblock := new(big.Int).SetBytes(value[16:])
 	ibalance := new(big.Int).SetBytes(value[:16])
 	balance := helpers.BalanceToRat(ibalance, decimals)
-	return balance, ibalance, mblock, nil
+	return balance, ibalance, mblock
 }
 
-// CheckMinimeKeys checks the validity of a storage proof key (RLP hexadecimal string) for a
-// specific token holder address. As MiniMe includes checkpoints and each one adds +1 to
-// the key, there is a maximum hardcoded tolerance of 2^16 positions for the key.
+// CheckMinimeKeys checks the validity of a storage proof key for a specific
+// token holder address. As MiniMe includes checkpoints and each one adds +1 to
+// the key, there is a maximum hardcoded tolerance of 2^16 positions for the
+// key.
 func CheckMinimeKeys(key1, key2 []byte, holder common.Address, mapIndexSlot int) error {
-	mapSlot, err := helpers.GetMapSlot(holder.Hex(), mapIndexSlot)
-	if err != nil {
-		return err
-	}
-	vf, err := helpers.HashFromPosition(fmt.Sprintf("%x", mapSlot))
-	if err != nil {
-		return err
-	}
-	holderMapUindex := new(big.Int).SetBytes(vf[:]).Uint64()
+	mapSlot := helpers.GetMapSlot(holder, mapIndexSlot)
+	vf := helpers.HashFromPosition(mapSlot)
+	holderMapUindex := new(big.Int).SetBytes(vf[:])
 
-	key1Uindex := new(big.Int).SetBytes(key1).Uint64()
+	key1Uindex := new(big.Int).SetBytes(key1)
+	key2Uindex := new(big.Int).SetBytes(key2)
 
-	if key1Uindex+1 != new(big.Int).SetBytes(key2).Uint64() {
+	// key1+1 != key2
+	if new(big.Int).Add(key1Uindex, big.NewInt(1)).Cmp(key2Uindex) != 0 {
 		return fmt.Errorf("keys are not consecutive")
 	}
 
 	// We tolerate maximum 2^16 minime checkpoints
-	if key1Uindex-holderMapUindex > 65536 {
+	offset := new(big.Int).Sub(key1Uindex, holderMapUindex)
+	if offset.Cmp(big.NewInt(65536)) >= 0 || offset.Cmp(big.NewInt(0)) < 0 {
 		return fmt.Errorf("key offset overflow")
 	}
 	return nil

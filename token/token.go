@@ -17,7 +17,7 @@ const (
 )
 
 type Token interface {
-	Init(tokenAddress, web3endpoint string) error
+	Init(tokenAddress common.Address, web3endpoint string) error
 	DiscoverSlot(holder common.Address) (int, *big.Rat, error)
 	GetProof(holder common.Address, block *big.Int,
 		indexSlot int) (*ethstorageproof.StorageProof, error)
@@ -27,7 +27,7 @@ type Token interface {
 		targetBlock *big.Int) error
 }
 
-func NewToken(tokenType int, address, web3endpoint string) (Token, error) {
+func NewToken(tokenType int, address common.Address, web3endpoint string) (Token, error) {
 	var t Token
 	switch tokenType {
 	case TokenTypeMapbased:

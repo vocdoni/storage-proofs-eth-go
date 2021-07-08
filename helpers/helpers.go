@@ -1,8 +1,6 @@
 package helpers
 
 import (
-	"encoding/hex"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,41 +10,21 @@ import (
 
 // GetMapSlot returns the storage key slot for a holder.
 // Position is the index slot (storage index of amount balances map).
-func GetMapSlot(holder string, position int) ([32]byte, error) {
-	var slot [32]byte
-	hl, err := hex.DecodeString(TrimHex(holder))
-	if err != nil {
-		return slot, err
-	}
-	hl = common.LeftPadBytes(hl, 32)
-	posHex := fmt.Sprintf("%x", position)
-	if len(posHex)%2 == 1 {
-		posHex = "0" + posHex
-	}
-	p, err := hex.DecodeString(posHex)
-	if err != nil {
-		return slot, err
-	}
-	p = common.LeftPadBytes(p, 32)
-
-	hash := crypto.Keccak256(hl, p)
-	copy(slot[:], hash[:32])
-	return slot, err
+func GetMapSlot(holder common.Address, position int) [32]byte {
+	return crypto.Keccak256Hash(
+		common.LeftPadBytes(holder[:], 32),
+		common.LeftPadBytes(big.NewInt(int64(position)).Bytes(), 32),
+	)
 }
 
 // ValueToBalance takes a big endian encoded value and the number of decimals
 // and returns the balance as a big.Rat (considering decimals) and big.Int
 // (not considering decimals).
-func ValueToBalance(value []byte, decimals int) (*big.Rat, *big.Int, error) {
+func ValueToBalance(value []byte, decimals int) (*big.Rat, *big.Int) {
 	// Parse balance value
-	amount := new(big.Float)
-	value = common.TrimLeftZeroes(value)
-	if _, ok := amount.SetString(fmt.Sprintf("0x%x", value)); !ok {
-		return nil, nil, fmt.Errorf("amount cannot be parsed")
-	}
-	ibalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", value), 16)
+	ibalance := new(big.Int).SetBytes(value)
 	balance := BalanceToRat(ibalance, decimals)
-	return balance, ibalance, nil
+	return balance, ibalance
 }
 
 // BalanceToRat returns the balance as a big.Rat considering the number of
@@ -59,45 +37,14 @@ func BalanceToRat(b *big.Int, decimals int) *big.Rat {
 	)
 }
 
-func HashFromPosition(position string) ([32]byte, error) {
-	var slot [32]byte
-	hl, err := hex.DecodeString(TrimHex(position))
-	if err != nil {
-		return slot, err
-	}
-	hl = common.LeftPadBytes(hl, 32)
-	hash := crypto.Keccak256(hl)
-	copy(slot[:], hash[:32])
-	return slot, err
+func HashFromPosition(position [32]byte) [32]byte {
+	return crypto.Keccak256Hash(position[:])
 }
 
 // GetArraySlot returns the storage merkle tree key slot for a Solidity array.
 // Position is the index slot (the position of the Array on the source code).
-func GetArraySlot(position int) ([32]byte, error) {
-	var slot [32]byte
-	posHex := fmt.Sprintf("%x", position)
-	if len(posHex)%2 == 1 {
-		posHex = "0" + posHex
-	}
-	p, err := hex.DecodeString(posHex)
-	if err != nil {
-		return slot, err
-	}
-	p = common.LeftPadBytes(p, 32)
-
-	hash := crypto.Keccak256(p)
-	copy(slot[:], hash[:32])
-	return slot, err
-}
-
-func TrimHex(s string) string {
-	if len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
-		s = s[2:]
-	}
-	if len(s)&1 == 1 {
-		s = "0" + s
-	}
-	return s
+func GetArraySlot(position int) [32]byte {
+	return crypto.Keccak256Hash(common.LeftPadBytes(big.NewInt(int64(position)).Bytes(), 32))
 }
 
 func ToBlockNumArg(number *big.Int) string {

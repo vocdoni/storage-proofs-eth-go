@@ -27,7 +27,7 @@ type Minime struct {
 	erc20 *erc20.ERC20Token
 }
 
-func (m *Minime) Init(tokenAddress, web3endpoint string) error {
+func (m *Minime) Init(tokenAddress common.Address, web3endpoint string) error {
 	m.erc20 = &erc20.ERC20Token{}
 	return m.erc20.Init(context.Background(), web3endpoint, tokenAddress)
 }
@@ -105,7 +105,7 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch minime array size: %w", err)
 	}
-	var keys []string
+	var keys [][]byte
 
 	// Firstly, check the last checkpoint block, if smaller than the current block number
 	// the proof will include the last checkpoint and a proof-of-nil for the next position.
@@ -118,7 +118,7 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 		if err != nil {
 			return nil, err
 		}
-		keys = append(keys, fmt.Sprintf("%x", slot), fmt.Sprintf("%x", slot2))
+		keys = append(keys, slot[:], slot2[:])
 	}
 
 	// Secondly walk through all checkpoints starting from the last.
@@ -142,7 +142,7 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 				if block.Uint64() > 0 {
 					return nil, fmt.Errorf("proof of nil has a block value")
 				}
-				keys = append(keys, fmt.Sprintf("%x", prevSlot), fmt.Sprintf("%x", currSlot))
+				keys = append(keys, prevSlot[:], currSlot[:])
 				break
 			}
 		}
@@ -172,14 +172,8 @@ func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
 	contractAddr := common.Address{}
 	copy(contractAddr[:], m.erc20.TokenAddr[:20])
 
-	mapSlot, err := helpers.GetMapSlot(holder.Hex(), mapIndexSlot)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	vf, err := helpers.HashFromPosition(fmt.Sprintf("%x", mapSlot))
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	mapSlot := helpers.GetMapSlot(holder, mapIndexSlot)
+	vf := helpers.HashFromPosition(mapSlot)
 
 	offset := new(big.Int).SetInt64(int64(position - 1))
 	v := new(big.Int).SetBytes(vf[:])
@@ -193,20 +187,14 @@ func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
 		return nil, nil, nil, err
 	}
 
-	balance, _, mblock, err := ParseMinimeValue(value, int(token.Decimals))
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	balance, _, mblock := ParseMinimeValue(value, int(token.Decimals))
 
 	return balance, mblock, &arraySlot, nil
 }
 
 func (m *Minime) getMinimeArraySize(holder common.Address, islot int) (int, error) {
 	// In this slot we should find the array size
-	mapSlot, err := helpers.GetMapSlot(holder.Hex(), islot)
-	if err != nil {
-		return 0, err
-	}
+	mapSlot := helpers.GetMapSlot(holder, islot)
 
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])

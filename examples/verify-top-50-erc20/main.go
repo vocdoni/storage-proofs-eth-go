@@ -18,9 +18,17 @@ func main() {
 	holder := flag.String("holder", "", "address of the token holder")
 	contractType := flag.String("type", "mapbased", "ERC20 contract type (mapbased, minime)")
 	flag.Parse()
+	var contractAddr common.Address
+	if err := contractAddr.UnmarshalText([]byte(*contract)); err != nil {
+		log.Fatal(err)
+	}
+	var holderAddr common.Address
+	if err := holderAddr.UnmarshalText([]byte(*holder)); err != nil {
+		log.Fatal(err)
+	}
 
 	ts := erc20.ERC20Token{}
-	ts.Init(context.Background(), *web3, *contract)
+	ts.Init(context.Background(), *web3, contractAddr)
 	tokenData, err := ts.GetTokenData()
 	if err != nil {
 		log.Fatal(err)
@@ -28,13 +36,12 @@ func main() {
 	if tokenData.Decimals < 1 {
 		log.Fatal("decimals cannot be fetch")
 	}
-	holderAddr := common.HexToAddress(*holder)
 
 	balance, err := ts.Balance(holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder, balance.String())
+	log.Printf("contract:%v holder:%v balance:%s", contractAddr, holderAddr, balance.String())
 	if balance.Cmp(big.NewRat(0, 1)) == 0 {
 		log.Println("no amount for holder")
 		return
@@ -50,11 +57,11 @@ func main() {
 		log.Fatalf("token type not supported %s", *contractType)
 	}
 
-	t, err := token.NewToken(ttype, *contract, *web3)
+	t, err := token.NewToken(ttype, contractAddr, *web3)
 	if err != nil {
 		log.Fatal(err)
 	}
-	slot, amount, err := t.DiscoverSlot(common.HexToAddress(*holder))
+	slot, amount, err := t.DiscoverSlot(holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}

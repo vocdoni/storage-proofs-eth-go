@@ -28,7 +28,7 @@ type Mapbased struct {
 	erc20 *erc20.ERC20Token
 }
 
-func (m *Mapbased) Init(tokenAddress, web3endpoint string) error {
+func (m *Mapbased) Init(tokenAddress common.Address, web3endpoint string) error {
 	m.erc20 = &erc20.ERC20Token{}
 	return m.erc20.Init(context.Background(), web3endpoint, tokenAddress)
 }
@@ -56,11 +56,8 @@ func (m *Mapbased) GetProof(holder common.Address,
 // If index slot is unknown, GetProof() could be used instead to try to find it
 func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.Address,
 	block *types.Block, islot int) (*ethstorageproof.StorageProof, error) {
-	slot, err := helpers.GetMapSlot(holder.Hex(), islot)
-	if err != nil {
-		return nil, err
-	}
-	keys := []string{fmt.Sprintf("%x", slot)}
+	slot := helpers.GetMapSlot(holder, islot)
+	var err error
 	if block == nil {
 		block, err = m.erc20.GetBlock(ctx, nil)
 		if err != nil {
@@ -70,7 +67,7 @@ func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.A
 			return nil, fmt.Errorf("cannot fetch block info")
 		}
 	}
-	return m.erc20.GetProof(ctx, keys, block)
+	return m.erc20.GetProof(ctx, [][]byte{slot[:]}, block)
 }
 
 // DiscoverSlot tries to find the EVM storage index slot.
@@ -95,10 +92,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 	index := -1
 	for i := 0; i < DiscoveryIterations; i++ {
 		// Prepare storage index
-		slot, err = helpers.GetMapSlot(holder.Hex(), i)
-		if err != nil {
-			return index, nil, fmt.Errorf("GetSlot: %w", err)
-		}
+		slot = helpers.GetMapSlot(holder, i)
 		// Get Storage
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		value, err := m.erc20.Ethcli.StorageAt(ctx, addr, slot, nil)
@@ -108,10 +102,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 		}
 
 		// Parse balance value
-		amount, _, err = helpers.ValueToBalance(value, int(tokenData.Decimals))
-		if err != nil {
-			continue
-		}
+		amount, _ = helpers.ValueToBalance(value, int(tokenData.Decimals))
 		// Check if balance matches
 		if amount.Cmp(balance) == 0 {
 			index = i
@@ -153,16 +144,13 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	}
 
 	// Check proof key matches with holder address
-	keySlot, err := helpers.GetMapSlot(holder.Hex(), mapIndexSlot)
-	if err != nil {
-		return err
-	}
+	keySlot := helpers.GetMapSlot(holder, mapIndexSlot)
 	if !bytes.Equal(keySlot[:], proof.Key) {
 		return fmt.Errorf("proof key and leafData do not match (%x != %x)", keySlot, proof.Key)
 	}
 
 	// Check value balances matches
-	proofBalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", proof.Value), 16)
+	proofBalance := new(big.Int).SetBytes(proof.Value)
 	if targetBalance.Cmp(proofBalance) != 0 {
 		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
 			proofBalance.String(), targetBalance.String())

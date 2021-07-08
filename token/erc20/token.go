@@ -3,14 +3,16 @@ package erc20
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type TokenData struct {
-	Address     string   `json:"address"`
-	Name        string   `json:"name"`
-	Symbol      string   `json:"symbol"`
-	Decimals    uint8    `json:"decimals"`
-	TotalSupply *big.Int `json:"totalSupply,omitempty"`
+	Address     common.Address `json:"address"`
+	Name        string         `json:"name"`
+	Symbol      string         `json:"symbol"`
+	Decimals    uint8          `json:"decimals"`
+	TotalSupply *big.Int       `json:"totalSupply,omitempty"`
 }
 
 func (t *TokenData) String() string {
