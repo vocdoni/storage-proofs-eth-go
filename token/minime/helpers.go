@@ -2,7 +2,6 @@ package minime
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -102,16 +101,12 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 // Returns the float balance (taking into account the decimals), the full
 // integer without taking into account the decimals and the Ethereum block
 // number for the checkpoint.
-func ParseMinimeValue(value []byte, decimals int) (*big.Float, *big.Int, *big.Int, error) {
+func ParseMinimeValue(value []byte, decimals int) (*big.Rat, *big.Int, *big.Int, error) {
 	// hexValue could be left zeroes trimed, so we need to expand it to 32 bytes
 	value = common.LeftPadBytes(value, 32)
-	mblock := new(big.Int).SetBytes(common.TrimLeftZeroes(value[16:]))
-	ibalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", value[:16]), 16)
-	balance := new(big.Float)
-	if _, ok := balance.SetString(fmt.Sprintf("0x%x", value[:16])); !ok {
-		return nil, nil, nil, fmt.Errorf("amount cannot be parsed")
-	}
-	balance.Mul(balance, big.NewFloat(1/(math.Pow10(decimals))))
+	mblock := new(big.Int).SetBytes(value[16:])
+	ibalance := new(big.Int).SetBytes(value[:16])
+	balance := helpers.BalanceToRat(ibalance, decimals)
 	return balance, ibalance, mblock, nil
 }
 

@@ -18,7 +18,7 @@ const (
 
 type Token interface {
 	Init(tokenAddress, web3endpoint string) error
-	DiscoverSlot(holder common.Address) (int, *big.Float, error)
+	DiscoverSlot(holder common.Address) (int, *big.Rat, error)
 	GetProof(holder common.Address, block *big.Int,
 		indexSlot int) (*ethstorageproof.StorageProof, error)
 	GetBlock(block *big.Int) (*types.Block, error)

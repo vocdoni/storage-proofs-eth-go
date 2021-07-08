@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
@@ -34,7 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder, balance.String())
-	if a, _ := balance.Uint64(); a == 0 {
+	if balance.Cmp(big.NewRat(0, 1)) == 0 {
 		log.Println("no amount for holder")
 		return
 	}

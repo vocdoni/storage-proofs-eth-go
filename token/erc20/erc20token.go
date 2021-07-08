@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/big"
 	"strings"
 
@@ -102,7 +101,7 @@ func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 }
 
 // Balance returns the current address balance
-func (w *ERC20Token) Balance(address common.Address) (*big.Float, error) {
+func (w *ERC20Token) Balance(address common.Address) (*big.Rat, error) {
 	b, err := w.token.BalanceOf(&bind.CallOpts{}, address)
 	if err != nil {
 		return nil, err
@@ -111,10 +110,7 @@ func (w *ERC20Token) Balance(address common.Address) (*big.Float, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := big.NewFloat(float64(0))
-	f.SetString(b.String())
-	f.Mul(f, big.NewFloat(1/(math.Pow10(int(decimals)))))
-	return f, nil
+	return helpers.BalanceToRat(b, int(decimals)), nil
 }
 
 // TokenName wraps the name() function contract call
