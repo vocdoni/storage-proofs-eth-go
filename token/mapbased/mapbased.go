@@ -77,7 +77,7 @@ func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.A
 // A token holder address must be provided in order to have a balance to search and compare.
 // Returns ErrSlotNotFound if the slot cannot be found.
 // If found, returns also the amount stored.
-func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
+func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 	var slot [32]byte
 	tokenData, err := m.erc20.GetTokenData()
 	if err != nil {
@@ -91,8 +91,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])
 
-	ubalance, _ := balance.Uint64()
-	amount := big.NewFloat(0)
+	var amount *big.Rat
 	index := -1
 	for i := 0; i < DiscoveryIterations; i++ {
 		// Prepare storage index
@@ -109,12 +108,12 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Float, error) 
 		}
 
 		// Parse balance value
-		amount, _, err := helpers.ValueToBalance(value, int(tokenData.Decimals))
+		amount, _, err = helpers.ValueToBalance(value, int(tokenData.Decimals))
 		if err != nil {
 			continue
 		}
 		// Check if balance matches
-		if a, _ := amount.Uint64(); a == ubalance {
+		if amount.Cmp(balance) == 0 {
 			index = i
 			break
 		}

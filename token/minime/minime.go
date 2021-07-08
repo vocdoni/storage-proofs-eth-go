@@ -39,7 +39,7 @@ func (m *Minime) GetBlock(block *big.Int) (*types.Block, error) {
 }
 
 // DiscoverSlot tries to find the map index slot for the minime balances
-func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
+func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 	balance, err := m.erc20.Balance(holder)
 	if err != nil {
 		return -1, nil, err
@@ -47,7 +47,7 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
 
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])
-	amount := big.NewFloat(0)
+	var amount *big.Rat
 	var block *big.Int
 	index := -1
 
@@ -73,8 +73,7 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Float, error) {
 		}
 
 		// Check if balance matches
-		a, _ := amount.Uint64()
-		if b, _ := balance.Uint64(); b == a {
+		if amount.Cmp(balance) == 0 {
 			index = i
 			break
 		}
@@ -137,7 +136,7 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 				if err != nil {
 					return nil, err
 				}
-				if b, _ := balance.Uint64(); b > 0 {
+				if balance.Cmp(big.NewRat(0, 1)) == 1 {
 					return nil, fmt.Errorf("proof of nil has a balance value")
 				}
 				if block.Uint64() > 0 {
@@ -165,7 +164,7 @@ func (m *Minime) VerifyProof(holder common.Address, storageRoot common.Hash,
 // getMinimeAtPosition returns the data contained in a specific checkpoint array position,
 // returns the balance, the checkpoint block and the merkle tree key slot
 func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
-	position int, block *big.Int) (*big.Float, *big.Int, *common.Hash, error) {
+	position int, block *big.Int) (*big.Rat, *big.Int, *common.Hash, error) {
 	token, err := m.erc20.GetTokenData()
 	if err != nil {
 		return nil, nil, nil, err

@@ -3,7 +3,6 @@ package helpers
 import (
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -35,9 +34,10 @@ func GetMapSlot(holder string, position int) ([32]byte, error) {
 	return slot, err
 }
 
-// ValueToBalance takes a RLP encoded hexadecimal string and the number of decimals and returns
-// the balance as a big.Float number.
-func ValueToBalance(value []byte, decimals int) (*big.Float, *big.Int, error) {
+// ValueToBalance takes a big endian encoded value and the number of decimals
+// and returns the balance as a big.Rat (considering decimals) and big.Int
+// (not considering decimals).
+func ValueToBalance(value []byte, decimals int) (*big.Rat, *big.Int, error) {
 	// Parse balance value
 	amount := new(big.Float)
 	value = common.TrimLeftZeroes(value)
@@ -45,7 +45,18 @@ func ValueToBalance(value []byte, decimals int) (*big.Float, *big.Int, error) {
 		return nil, nil, fmt.Errorf("amount cannot be parsed")
 	}
 	ibalance, _ := new(big.Int).SetString(fmt.Sprintf("%x", value), 16)
-	return amount.Mul(amount, big.NewFloat(1/(math.Pow10(decimals)))), ibalance, nil
+	balance := BalanceToRat(ibalance, decimals)
+	return balance, ibalance, nil
+}
+
+// BalanceToRat returns the balance as a big.Rat considering the number of
+// decimals.
+func BalanceToRat(b *big.Int, decimals int) *big.Rat {
+	return new(big.Rat).Quo(
+		new(big.Rat).SetInt(b),
+		new(big.Rat).SetInt(
+			new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)),
+	)
 }
 
 func HashFromPosition(position string) ([32]byte, error) {

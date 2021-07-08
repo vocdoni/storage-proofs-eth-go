@@ -34,14 +34,16 @@ func main() {
 	if tokenData.Decimals < 1 {
 		log.Fatal("decimals cannot be fetch")
 	}
+	decimals := int(tokenData.Decimals)
 	holderAddr := common.HexToAddress(*holder)
 
 	balance, err := ts.Balance(holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder, balance.String())
-	if a, _ := balance.Uint64(); a == 0 {
+	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder,
+		balance.FloatString(decimals))
+	if balance.Cmp(big.NewRat(0, 1)) == 0 {
 		log.Println("no amount for holder")
 		return
 	}
@@ -64,7 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("storage data -> slot: %d amount: %s", slot, amount.String())
+	log.Printf("storage data -> slot: %d amount: %s", slot, amount.FloatString(decimals))
 
 	var blockNum *big.Int
 	if *height > 0 {
@@ -88,7 +90,7 @@ func main() {
 		if err != nil {
 			log.Printf("warning: %v", err)
 		}
-		log.Printf("balance on block %s: %s", block.String(), balance.String())
+		log.Printf("balance on block %s: %s", block.String(), balance.FloatString(decimals))
 		log.Printf("hex balance: %x\n", fullBalance.Bytes())
 		log.Printf("storage root: %x\n", sproof.StorageHash)
 		if err := minime.VerifyProof(
@@ -109,7 +111,8 @@ func main() {
 		if err != nil {
 			log.Printf("warning: %v", err)
 		}
-		log.Printf("mapbased balance on block %s: %s", block.Number().String(), balance.String())
+		log.Printf("mapbased balance on block %s: %s", block.Number().String(),
+			balance.FloatString(decimals))
 		if err := mapbased.VerifyProof(
 			common.HexToAddress(*holder),
 			sproof.StorageHash,
