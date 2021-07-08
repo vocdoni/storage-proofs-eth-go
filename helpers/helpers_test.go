@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	qt "github.com/frankban/quicktest"
 )
@@ -29,11 +30,28 @@ func TestValueToBalance(t *testing.T) {
 	}}
 	for i, v := range vectors {
 		value := hexutil.MustDecode(v.inputValue)
-		balance, ibalance, err := ValueToBalance(value, v.inputDecimals)
+		balance, ibalance := ValueToBalance(value, v.inputDecimals)
 		c.Run(fmt.Sprintf("i=%v", i), func(c *qt.C) {
-			c.Assert(err, qt.IsNil)
 			c.Check(balance.FloatString(v.inputDecimals), qt.Equals, v.outputBalance)
 			c.Check(ibalance.String(), qt.Equals, v.outputIBalance)
 		})
 	}
+}
+
+func TestGetMapSlot(t *testing.T) {
+	c := qt.New(t)
+
+	address := common.HexToAddress("0xbd9c69654b8f3e5978dfd138b00cb0be29f28ccf")
+	position := 1
+	mapSlot := GetMapSlot(address, position)
+	c.Check(common.Hash(mapSlot).Hex(), qt.Equals,
+		"0x4a985c9a291a06b2854315c3a75ca2c1065ef62e859e2534b655d306748c16d4")
+}
+
+func TestGetArraySlot(t *testing.T) {
+	c := qt.New(t)
+
+	arraySlot := GetArraySlot(3)
+	c.Check(common.Hash(arraySlot).Hex(), qt.Equals,
+		"0xc2575a0e9e593c00f959f8c92f12db2869c3395a3b0502d05e2516446f71f85b")
 }

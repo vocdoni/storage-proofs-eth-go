@@ -32,9 +32,8 @@ func TestParseMinimeValue(t *testing.T) {
 	}}
 	for i, v := range vectors {
 		value := hexutil.MustDecode(v.inputValue)
-		balance, ibalance, mblock, err := ParseMinimeValue(value, v.inputDecimals)
+		balance, ibalance, mblock := ParseMinimeValue(value, v.inputDecimals)
 		c.Run(fmt.Sprintf("i=%v", i), func(c *qt.C) {
-			c.Assert(err, qt.IsNil)
 			c.Check(balance.FloatString(v.inputDecimals), qt.Equals, v.outputBalance)
 			c.Check(ibalance.String(), qt.Equals, v.outputIBalance)
 			c.Check(mblock.String(), qt.Equals, v.outputBlock)

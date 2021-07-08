@@ -23,8 +23,17 @@ func main() {
 	height := flag.Int64("height", 0, "ethereum height (0 becomes last block)")
 	flag.Parse()
 
+	var contractAddr common.Address
+	if err := contractAddr.UnmarshalText([]byte(*contract)); err != nil {
+		log.Fatal(err)
+	}
+	var holderAddr common.Address
+	if err := holderAddr.UnmarshalText([]byte(*holder)); err != nil {
+		log.Fatal(err)
+	}
+
 	ts := erc20.ERC20Token{}
-	if err := ts.Init(context.Background(), *web3, *contract); err != nil {
+	if err := ts.Init(context.Background(), *web3, contractAddr); err != nil {
 		log.Fatal(err)
 	}
 	tokenData, err := ts.GetTokenData()
@@ -35,13 +44,12 @@ func main() {
 		log.Fatal("decimals cannot be fetch")
 	}
 	decimals := int(tokenData.Decimals)
-	holderAddr := common.HexToAddress(*holder)
 
 	balance, err := ts.Balance(holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("contract:%s holder:%s balance:%s", *contract, *holder,
+	log.Printf("contract:%v holder:%v balance:%s", contractAddr, holderAddr,
 		balance.FloatString(decimals))
 	if balance.Cmp(big.NewRat(0, 1)) == 0 {
 		log.Println("no amount for holder")
@@ -58,11 +66,11 @@ func main() {
 		log.Fatalf("token type not supported %s", *contractType)
 	}
 
-	t, err := token.NewToken(ttype, *contract, *web3)
+	t, err := token.NewToken(ttype, contractAddr, *web3)
 	if err != nil {
 		log.Fatal(err)
 	}
-	slot, amount, err := t.DiscoverSlot(common.HexToAddress(*holder))
+	slot, amount, err := t.DiscoverSlot(holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -83,18 +91,15 @@ func main() {
 
 	switch ttype {
 	case token.TokenTypeMinime:
-		balance, fullBalance, block, err := minime.ParseMinimeValue(
+		balance, fullBalance, block := minime.ParseMinimeValue(
 			sproof.StorageProof[0].Value,
 			int(tokenData.Decimals),
 		)
-		if err != nil {
-			log.Printf("warning: %v", err)
-		}
 		log.Printf("balance on block %s: %s", block.String(), balance.FloatString(decimals))
 		log.Printf("hex balance: %x\n", fullBalance.Bytes())
 		log.Printf("storage root: %x\n", sproof.StorageHash)
 		if err := minime.VerifyProof(
-			common.HexToAddress(*holder),
+			holderAddr,
 			sproof.StorageHash,
 			sproof.StorageProof,
 			slot,
@@ -104,17 +109,14 @@ func main() {
 			log.Fatal(err)
 		}
 	case token.TokenTypeMapbased:
-		balance, fullBalance, err := helpers.ValueToBalance(
+		balance, fullBalance := helpers.ValueToBalance(
 			sproof.StorageProof[0].Value,
 			int(tokenData.Decimals),
 		)
-		if err != nil {
-			log.Printf("warning: %v", err)
-		}
 		log.Printf("mapbased balance on block %s: %s", block.Number().String(),
 			balance.FloatString(decimals))
 		if err := mapbased.VerifyProof(
-			common.HexToAddress(*holder),
+			holderAddr,
 			sproof.StorageHash,
 			sproof.StorageProof[0],
 			slot,

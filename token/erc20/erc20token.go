@@ -2,7 +2,6 @@ package erc20
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strings"
@@ -26,12 +25,13 @@ type ERC20Token struct {
 	RPCcli    *rpc.Client
 	Ethcli    *ethclient.Client
 	token     *contracts.TokenCaller
-	TokenAddr []byte
+	TokenAddr common.Address
 	networkID *big.Int
 }
 
 // Init creates and client connection and connects to an ERC20 contract given its address
-func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress string) error {
+func (w *ERC20Token) Init(ctx context.Context, web3Endpoint string,
+	contractAddress common.Address) error {
 	var err error
 	// if web3Endpoint is empty assume the client already exists
 	if web3Endpoint != "" {
@@ -55,13 +55,8 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 		return err
 	}
 	// load token contract
-	w.TokenAddr, err = hex.DecodeString(helpers.TrimHex(contractAddress))
-	if err != nil {
-		return err
-	}
-	caddr := common.Address{}
-	caddr.SetBytes(w.TokenAddr)
-	if w.token, err = contracts.NewTokenCaller(caddr, w.Ethcli); err != nil {
+	w.TokenAddr = contractAddress
+	if w.token, err = contracts.NewTokenCaller(w.TokenAddr, w.Ethcli); err != nil {
 		return err
 	}
 
@@ -70,7 +65,7 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint, contractAddress str
 
 // GetTokenData gets useful data abount the token
 func (w *ERC20Token) GetTokenData() (*TokenData, error) {
-	td := &TokenData{Address: fmt.Sprintf("%x", w.TokenAddr)}
+	td := &TokenData{Address: w.TokenAddr}
 	var err error
 
 	if td.Name, err = w.TokenName(); err != nil {
@@ -134,7 +129,7 @@ func (w *ERC20Token) TokenTotalSupply() (*big.Int, error) {
 }
 
 // GetProof calls the eth_getProof web3 method
-func (w *ERC20Token) GetProof(ctx context.Context, keys []string,
+func (w *ERC20Token) GetProof(ctx context.Context, keys [][]byte,
 	block *types.Block) (*ethstorageproof.StorageProof, error) {
 	if block == nil {
 		return nil, fmt.Errorf("block is nil")
@@ -145,7 +140,7 @@ func (w *ERC20Token) GetProof(ctx context.Context, keys []string,
 		&resp,
 		"eth_getProof",
 		fmt.Sprintf("0x%x", w.TokenAddr),
-		keys,
+		ethstorageproof.SliceData(keys),
 		helpers.ToBlockNumArg(block.Number()),
 	); err != nil {
 		return nil, err

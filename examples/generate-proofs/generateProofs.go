@@ -21,11 +21,15 @@ func main() {
 	contract := flag.String("contract", "", "ERC20 contract address")
 	holderFile := flag.String("holderFile", "", "text file with holder addresses (separated by line)")
 	flag.Parse()
+	var contractAddr common.Address
+	if err := contractAddr.UnmarshalText([]byte(*contract)); err != nil {
+		log.Fatal(err)
+	}
 	data, err := ioutil.ReadFile(*holderFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	getProofs(*web3, *contract, strings.Split(string(data), "\n"))
+	getProofs(*web3, contractAddr, strings.Split(string(data), "\n"))
 }
 
 type EthProofs struct {
@@ -40,7 +44,7 @@ type HolderProof struct {
 	StorageProof ethstorageproof.StorageResult `json:"storageProof"`
 }
 
-func getProofs(web3, contract string, holders []string) {
+func getProofs(web3 string, contract common.Address, holders []string) {
 	t, err := token.NewToken(token.TokenTypeMapbased, contract, web3)
 	if err != nil {
 		log.Fatal(err)

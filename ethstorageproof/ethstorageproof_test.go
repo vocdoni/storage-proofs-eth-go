@@ -3,7 +3,6 @@ package ethstorageproof
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -165,7 +164,6 @@ func TestVerify(t *testing.T) {
 			}
 		}
 
-		fmt.Printf("= %v -> %v\n", tt.value, value)
 		if vp, err := VerifyProof(crypto.Keccak256Hash(tt.proof[0]), tt.key,
 			value, tt.proof); vp != tt.verify {
 			t.Errorf("testcase %d: want %v, got %v (err: %v)\n", i, tt.verify, !tt.verify, err)
