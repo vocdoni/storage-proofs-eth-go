@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -27,20 +26,18 @@ type Minime struct {
 	erc20 *erc20.ERC20Token
 }
 
-func (m *Minime) Init(tokenAddress common.Address, web3endpoint string) error {
+func (m *Minime) Init(ctx context.Context, tokenAddress common.Address, web3endpoint string) error {
 	m.erc20 = &erc20.ERC20Token{}
-	return m.erc20.Init(context.Background(), web3endpoint, tokenAddress)
+	return m.erc20.Init(ctx, web3endpoint, tokenAddress)
 }
 
-func (m *Minime) GetBlock(block *big.Int) (*types.Block, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (m *Minime) GetBlock(ctx context.Context, block *big.Int) (*types.Block, error) {
 	return m.erc20.GetBlock(ctx, block)
 }
 
 // DiscoverSlot tries to find the map index slot for the minime balances
-func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
-	balance, err := m.erc20.Balance(holder)
+func (m *Minime) DiscoverSlot(ctx context.Context, holder common.Address) (int, *big.Rat, error) {
+	balance, err := m.erc20.Balance(ctx, holder)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -52,7 +49,7 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 	index := -1
 
 	for i := 0; i < maxIterationsForDiscover; i++ {
-		checkPointsSize, err := m.getMinimeArraySize(holder, i)
+		checkPointsSize, err := m.getMinimeArraySize(ctx, holder, i)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -61,6 +58,7 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 		}
 
 		if amount, block, _, err = m.getMinimeAtPosition(
+			ctx,
 			holder,
 			i,
 			checkPointsSize,
@@ -95,13 +93,9 @@ func (m *Minime) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 // Minime checkpoints: [70],[80],[90],[100]
 // For block 87, we need to provide checkpoint 80 and 90
 //
-func (m *Minime) GetProof(holder common.Address, block *big.Int,
+func (m *Minime) GetProof(ctx context.Context, holder common.Address, block *big.Int,
 	islot int) (*ethstorageproof.StorageProof, error) {
-	blockData, err := m.GetBlock(block)
-	if err != nil {
-		return nil, err
-	}
-	checkPointsSize, err := m.getMinimeArraySize(holder, islot)
+	checkPointsSize, err := m.getMinimeArraySize(ctx, holder, islot)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch minime array size: %w", err)
 	}
@@ -109,12 +103,12 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 
 	// Firstly, check the last checkpoint block, if smaller than the current block number
 	// the proof will include the last checkpoint and a proof-of-nil for the next position.
-	_, mblock, slot, err := m.getMinimeAtPosition(holder, islot, checkPointsSize, block)
+	_, mblock, slot, err := m.getMinimeAtPosition(ctx, holder, islot, checkPointsSize, block)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get minime: %w", err)
 	}
-	if blockData.NumberU64() >= mblock.Uint64() {
-		_, _, slot2, err := m.getMinimeAtPosition(holder, islot, checkPointsSize+1, block)
+	if block.Uint64() >= mblock.Uint64() {
+		_, _, slot2, err := m.getMinimeAtPosition(ctx, holder, islot, checkPointsSize+1, block)
 		if err != nil {
 			return nil, err
 		}
@@ -124,15 +118,15 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 	// Secondly walk through all checkpoints starting from the last.
 	if len(keys) == 0 {
 		for i := checkPointsSize - 1; i > 0; i-- {
-			_, checkpointBlock, prevSlot, err := m.getMinimeAtPosition(holder, islot, i-1, block)
+			_, checkpointBlock, prevSlot, err := m.getMinimeAtPosition(ctx, holder, islot, i-1, block)
 			if err != nil {
 				return nil, fmt.Errorf("cannot get minime: %w", err)
 			}
 
 			// If minime checkpoint block -1 is equal or greather than the block we
 			// are looking for, that's the one we need (the previous and the current)
-			if checkpointBlock.Uint64() >= blockData.NumberU64() {
-				balance, block, currSlot, err := m.getMinimeAtPosition(holder, islot, i, block)
+			if checkpointBlock.Uint64() >= block.Uint64() {
+				balance, block, currSlot, err := m.getMinimeAtPosition(ctx, holder, islot, i, block)
 				if err != nil {
 					return nil, err
 				}
@@ -151,7 +145,7 @@ func (m *Minime) GetProof(holder common.Address, block *big.Int,
 		return nil, fmt.Errorf("checkpoint not found")
 	}
 
-	return m.erc20.GetProof(context.Background(), keys, blockData)
+	return m.erc20.GetProof(context.Background(), keys, block)
 }
 
 // VerifyProof verifies a minime storage proof
@@ -163,9 +157,9 @@ func (m *Minime) VerifyProof(holder common.Address, storageRoot common.Hash,
 
 // getMinimeAtPosition returns the data contained in a specific checkpoint array position,
 // returns the balance, the checkpoint block and the merkle tree key slot
-func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
+func (m *Minime) getMinimeAtPosition(ctx context.Context, holder common.Address, mapIndexSlot,
 	position int, block *big.Int) (*big.Rat, *big.Int, *common.Hash, error) {
-	token, err := m.erc20.GetTokenData()
+	token, err := m.erc20.GetTokenData(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -180,8 +174,6 @@ func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
 	v.Add(v, offset)
 
 	arraySlot := common.BytesToHash(v.Bytes())
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
 	value, err := m.erc20.Ethcli.StorageAt(ctx, contractAddr, arraySlot, block)
 	if err != nil {
 		return nil, nil, nil, err
@@ -192,16 +184,15 @@ func (m *Minime) getMinimeAtPosition(holder common.Address, mapIndexSlot,
 	return balance, mblock, &arraySlot, nil
 }
 
-func (m *Minime) getMinimeArraySize(holder common.Address, islot int) (int, error) {
+func (m *Minime) getMinimeArraySize(ctx context.Context, holder common.Address,
+	islot int) (int, error) {
 	// In this slot we should find the array size
 	mapSlot := helpers.GetMapSlot(holder, islot)
 
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	value, err := m.erc20.Ethcli.StorageAt(ctx, addr, mapSlot, nil)
-	cancel()
 	if err != nil {
 		return 0, err
 	}

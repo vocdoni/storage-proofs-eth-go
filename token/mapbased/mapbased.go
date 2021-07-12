@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -28,45 +27,28 @@ type Mapbased struct {
 	erc20 *erc20.ERC20Token
 }
 
-func (m *Mapbased) Init(tokenAddress common.Address, web3endpoint string) error {
+func (m *Mapbased) Init(ctx context.Context, tokenAddress common.Address,
+	web3endpoint string) error {
 	m.erc20 = &erc20.ERC20Token{}
-	return m.erc20.Init(context.Background(), web3endpoint, tokenAddress)
+	return m.erc20.Init(ctx, web3endpoint, tokenAddress)
 }
 
-func (m *Mapbased) GetBlock(block *big.Int) (*types.Block, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (m *Mapbased) GetBlock(ctx context.Context, block *big.Int) (*types.Block, error) {
 	return m.erc20.GetBlock(ctx, block)
 }
 
 // GetProof returns the storage merkle proofs for the acount holder
-func (m *Mapbased) GetProof(holder common.Address,
+func (m *Mapbased) GetProof(ctx context.Context, holder common.Address,
 	block *big.Int, islot int) (*ethstorageproof.StorageProof, error) {
-	blockData, err := m.GetBlock(block)
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	return m.getMapProofWithIndexSlot(ctx, holder, blockData, islot)
+	return m.getMapProofWithIndexSlot(ctx, holder, block, islot)
 }
 
 // getMapProofWithIndexSlot returns the storage merkle proofs for the acount holder.
 // The index slot is the position on the EVM storage sub-trie for the contract.
 // If index slot is unknown, GetProof() could be used instead to try to find it
 func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.Address,
-	block *types.Block, islot int) (*ethstorageproof.StorageProof, error) {
+	block *big.Int, islot int) (*ethstorageproof.StorageProof, error) {
 	slot := helpers.GetMapSlot(holder, islot)
-	var err error
-	if block == nil {
-		block, err = m.erc20.GetBlock(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-		if block == nil {
-			return nil, fmt.Errorf("cannot fetch block info")
-		}
-	}
 	return m.erc20.GetProof(ctx, [][]byte{slot[:]}, block)
 }
 
@@ -74,13 +56,13 @@ func (m *Mapbased) getMapProofWithIndexSlot(ctx context.Context, holder common.A
 // A token holder address must be provided in order to have a balance to search and compare.
 // Returns ErrSlotNotFound if the slot cannot be found.
 // If found, returns also the amount stored.
-func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
+func (m *Mapbased) DiscoverSlot(ctx context.Context, holder common.Address) (int, *big.Rat, error) {
 	var slot [32]byte
-	tokenData, err := m.erc20.GetTokenData()
+	tokenData, err := m.erc20.GetTokenData(ctx)
 	if err != nil {
 		return -1, nil, fmt.Errorf("GetTokenData: %w", err)
 	}
-	balance, err := m.erc20.Balance(holder)
+	balance, err := m.erc20.Balance(ctx, holder)
 	if err != nil {
 		return -1, nil, fmt.Errorf("balance: %w", err)
 	}
@@ -94,9 +76,7 @@ func (m *Mapbased) DiscoverSlot(holder common.Address) (int, *big.Rat, error) {
 		// Prepare storage index
 		slot = helpers.GetMapSlot(holder, i)
 		// Get Storage
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		value, err := m.erc20.Ethcli.StorageAt(ctx, addr, slot, nil)
-		cancel()
 		if err != nil {
 			return index, nil, err
 		}

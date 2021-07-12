@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
@@ -17,27 +18,28 @@ const (
 )
 
 type Token interface {
-	Init(tokenAddress common.Address, web3endpoint string) error
-	DiscoverSlot(holder common.Address) (int, *big.Rat, error)
-	GetProof(holder common.Address, block *big.Int,
+	Init(ctx context.Context, tokenAddress common.Address, web3endpoint string) error
+	DiscoverSlot(ctx context.Context, holder common.Address) (int, *big.Rat, error)
+	GetProof(ctx context.Context, holder common.Address, block *big.Int,
 		indexSlot int) (*ethstorageproof.StorageProof, error)
-	GetBlock(block *big.Int) (*types.Block, error)
+	GetBlock(ctx context.Context, block *big.Int) (*types.Block, error)
 	VerifyProof(holder common.Address, storageRoot common.Hash,
 		proofs []ethstorageproof.StorageResult, indexSlot int, targetBalance,
 		targetBlock *big.Int) error
 }
 
-func NewToken(tokenType int, address common.Address, web3endpoint string) (Token, error) {
+func NewToken(ctx context.Context, tokenType int, address common.Address,
+	web3endpoint string) (Token, error) {
 	var t Token
 	switch tokenType {
 	case TokenTypeMapbased:
 		t = new(mapbased.Mapbased)
-		if err := t.Init(address, web3endpoint); err != nil {
+		if err := t.Init(ctx, address, web3endpoint); err != nil {
 			return nil, err
 		}
 	case TokenTypeMinime:
 		t = new(minime.Minime)
-		if err := t.Init(address, web3endpoint); err != nil {
+		if err := t.Init(ctx, address, web3endpoint); err != nil {
 			return nil, err
 		}
 	default:
