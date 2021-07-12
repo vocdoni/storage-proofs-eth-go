@@ -11,6 +11,7 @@ import (
 
 // VerifyProof verifies a Minime storage proof.
 // The targetBalance parameter is the full balance value, without decimals.
+// The proof checkpoints will be verified to fulfill `proof0Block <= targetBlock < proof1Block`.
 func VerifyProof(holder common.Address, storageRoot common.Hash,
 	proofs []ethstorageproof.StorageResult, mapIndexSlot int, targetBalance,
 	targetBlock *big.Int) error {
@@ -21,6 +22,10 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	for _, p := range proofs {
 		if p.Value == nil {
 			return fmt.Errorf("value is nil")
+		}
+		if len(p.Value) > 32 {
+			return fmt.Errorf("value length is wrong.  Expected <= 32, got %v",
+				len(p.Value))
 		}
 		if len(p.Key) != 32 {
 			return fmt.Errorf("key length is wrong (%d)", len(p.Key))
@@ -43,31 +48,30 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 
 	// Extract balance and block from the minime proof
 	_, proof0Balance, proof0Block := ParseMinimeValue(proofs[0].Value, 1)
-	if proof0Balance == nil || proof0Block == nil {
-		return fmt.Errorf("cannot extract balance or block from the minime proof")
-	}
 	// Check balance matches with the provided balance
 	if proof0Balance.Cmp(targetBalance) != 0 {
 		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
 			proof0Balance.String(), targetBalance.String())
 	}
 
-	// Proof 0 checkpoint block should be smaller or equal than target block
-	if proof0Block.Cmp(targetBlock) > 1 { // p0 > t
-		return fmt.Errorf("proof 0 checkpoint block is greather than the target block")
-	}
+	// Verify that `proof0Block <= targetBlock < proof1Block`
 
+	// Proof 0 checkpoint block should be smaller or equal than target block
+	if !(proof0Block.Cmp(targetBlock) <= 0) { // !(proof0Block <= targetBlock)
+		return fmt.Errorf("proof 0 block is not greater equal than target block")
+	}
 	// Check if the proof1 is a proof of non existence (so proof0 is the last checkpoint).
 	// If not the last, then check the target block is
 	if len(proofs[1].Value) != 0 {
 		_, _, proof1Block := ParseMinimeValue(proofs[1].Value, 1)
-		if proof0Block.Cmp(proof1Block) >= 0 { // p0 >= p1
-			return fmt.Errorf("proof 1 block is behind proof0 block")
+		if !(proof0Block.Cmp(proof1Block) < 0) { // !(proof0Block < proof1Block)
+			return fmt.Errorf("proof 0 block is not behind proof 1 block")
 		}
-		if targetBlock.Cmp(proof1Block) >= 0 { // t >= p1
-			return fmt.Errorf("proof 1 block number is smaller than target block")
+		if !(targetBlock.Cmp(proof1Block) < 0) { // !(targetBlock < proof1Block)
+			return fmt.Errorf("target block is not smaller than proof 1 block")
 		}
 	}
+
 	// Check both merkle proofs against the storage root hash
 	for i, p := range proofs {
 		valid, err := ethstorageproof.VerifyEthStorageProof(
