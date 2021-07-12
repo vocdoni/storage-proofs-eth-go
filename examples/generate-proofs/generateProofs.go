@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"io/ioutil"
@@ -29,7 +30,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	getProofs(*web3, contractAddr, strings.Split(string(data), "\n"))
+	ctx := context.Background()
+	getProofs(ctx, *web3, contractAddr, strings.Split(string(data), "\n"))
 }
 
 type EthProofs struct {
@@ -44,24 +46,24 @@ type HolderProof struct {
 	StorageProof ethstorageproof.StorageResult `json:"storageProof"`
 }
 
-func getProofs(web3 string, contract common.Address, holders []string) {
-	t, err := token.NewToken(token.TokenTypeMapbased, contract, web3)
+func getProofs(ctx context.Context, web3 string, contract common.Address, holders []string) {
+	t, err := token.NewToken(ctx, token.TokenTypeMapbased, contract, web3)
 	if err != nil {
 		log.Fatal(err)
 	}
-	slot, _, err := t.DiscoverSlot(common.HexToAddress(holders[0]))
+	slot, _, err := t.DiscoverSlot(ctx, common.HexToAddress(holders[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
 	proofs := EthProofs{}
 	proofs.IndexSlot = slot
 
-	sproof, err := t.GetProof(common.HexToAddress(holders[0]), nil, slot)
+	sproof, err := t.GetProof(ctx, common.HexToAddress(holders[0]), nil, slot)
 	if err != nil {
 		log.Fatalf("Error fetching storageRoot: %v", err)
 	}
 	proofs.StorageRoot = sproof.StorageHash.Hex()
-	blk, err := t.GetBlock(nil)
+	blk, err := t.GetBlock(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,7 +77,7 @@ func getProofs(web3 string, contract common.Address, holders []string) {
 		wg.Add(1)
 		go func() {
 			holderAddr := common.HexToAddress(h)
-			sproof, err := t.GetProof(holderAddr, blk.Number(), slot)
+			sproof, err := t.GetProof(ctx, holderAddr, blk.Number(), slot)
 			if err != nil {
 				log.Printf("error fetching %s: %v", holderAddr.Hex(), err)
 			} else {

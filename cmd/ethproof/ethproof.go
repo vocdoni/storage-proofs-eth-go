@@ -6,6 +6,7 @@ import (
 	"flag"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
@@ -32,11 +33,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 	ts := erc20.ERC20Token{}
 	if err := ts.Init(context.Background(), *web3, contractAddr); err != nil {
 		log.Fatal(err)
 	}
-	tokenData, err := ts.GetTokenData()
+	tokenData, err := ts.GetTokenData(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +48,7 @@ func main() {
 	}
 	decimals := int(tokenData.Decimals)
 
-	balance, err := ts.Balance(holderAddr)
+	balance, err := ts.Balance(ctx, holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,11 +69,11 @@ func main() {
 		log.Fatalf("token type not supported %s", *contractType)
 	}
 
-	t, err := token.NewToken(ttype, contractAddr, *web3)
+	t, err := token.NewToken(ctx, ttype, contractAddr, *web3)
 	if err != nil {
 		log.Fatal(err)
 	}
-	slot, amount, err := t.DiscoverSlot(holderAddr)
+	slot, amount, err := t.DiscoverSlot(ctx, holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,7 +87,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sproof, err := t.GetProof(holderAddr, block.Number(), slot)
+	sproof, err := t.GetProof(ctx, holderAddr, block.Number(), slot)
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}

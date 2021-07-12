@@ -64,11 +64,11 @@ func (w *ERC20Token) Init(ctx context.Context, web3Endpoint string,
 }
 
 // GetTokenData gets useful data abount the token
-func (w *ERC20Token) GetTokenData() (*TokenData, error) {
+func (w *ERC20Token) GetTokenData(ctx context.Context) (*TokenData, error) {
 	td := &TokenData{Address: w.TokenAddr}
 	var err error
 
-	if td.Name, err = w.TokenName(); err != nil {
+	if td.Name, err = w.TokenName(ctx); err != nil {
 		if strings.Contains(err.Error(), "unmarshal an empty string") {
 			td.Name = "unknown-name"
 		} else {
@@ -76,7 +76,7 @@ func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 		}
 	}
 
-	if td.Symbol, err = w.TokenSymbol(); err != nil {
+	if td.Symbol, err = w.TokenSymbol(ctx); err != nil {
 		if strings.Contains(err.Error(), "unmarshal an empty string") {
 			td.Symbol = "unknown-symbol"
 		} else {
@@ -84,11 +84,11 @@ func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 		}
 	}
 
-	if td.Decimals, err = w.TokenDecimals(); err != nil {
+	if td.Decimals, err = w.TokenDecimals(ctx); err != nil {
 		return nil, fmt.Errorf("unable to get token decimals data: %s", err)
 	}
 
-	if td.TotalSupply, err = w.TokenTotalSupply(); err != nil {
+	if td.TotalSupply, err = w.TokenTotalSupply(ctx); err != nil {
 		return nil, fmt.Errorf("unable to get token supply data: %s", err)
 	}
 
@@ -96,12 +96,12 @@ func (w *ERC20Token) GetTokenData() (*TokenData, error) {
 }
 
 // Balance returns the current address balance
-func (w *ERC20Token) Balance(address common.Address) (*big.Rat, error) {
-	b, err := w.token.BalanceOf(&bind.CallOpts{}, address)
+func (w *ERC20Token) Balance(ctx context.Context, address common.Address) (*big.Rat, error) {
+	b, err := w.token.BalanceOf(&bind.CallOpts{Context: ctx}, address)
 	if err != nil {
 		return nil, err
 	}
-	decimals, err := w.TokenDecimals()
+	decimals, err := w.TokenDecimals(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,30 +109,32 @@ func (w *ERC20Token) Balance(address common.Address) (*big.Rat, error) {
 }
 
 // TokenName wraps the name() function contract call
-func (w *ERC20Token) TokenName() (string, error) {
-	return w.token.Name(nil)
+func (w *ERC20Token) TokenName(ctx context.Context) (string, error) {
+	return w.token.Name(&bind.CallOpts{Context: ctx})
 }
 
 // TokenSymbol wraps the symbol() function contract call
-func (w *ERC20Token) TokenSymbol() (string, error) {
-	return w.token.Symbol(nil)
+func (w *ERC20Token) TokenSymbol(ctx context.Context) (string, error) {
+	return w.token.Symbol(&bind.CallOpts{Context: ctx})
 }
 
 // TokenDecimals wraps the decimals() function contract call
-func (w *ERC20Token) TokenDecimals() (uint8, error) {
-	return w.token.Decimals(nil)
+func (w *ERC20Token) TokenDecimals(ctx context.Context) (uint8, error) {
+	return w.token.Decimals(&bind.CallOpts{Context: ctx})
 }
 
 // TokenTotalSupply wraps the totalSupply function contract call
-func (w *ERC20Token) TokenTotalSupply() (*big.Int, error) {
-	return w.token.TotalSupply(nil)
+func (w *ERC20Token) TokenTotalSupply(ctx context.Context) (*big.Int, error) {
+	return w.token.TotalSupply(&bind.CallOpts{Context: ctx})
 }
 
-// GetProof calls the eth_getProof web3 method
+// GetProof calls the eth_getProof web3 method.  If block is nil, the proof at
+// the latest block will be retreived.
 func (w *ERC20Token) GetProof(ctx context.Context, keys [][]byte,
-	block *types.Block) (*ethstorageproof.StorageProof, error) {
-	if block == nil {
-		return nil, fmt.Errorf("block is nil")
+	block *big.Int) (*ethstorageproof.StorageProof, error) {
+	blockData, err := w.GetBlock(ctx, block)
+	if err != nil {
+		return nil, err
 	}
 	var resp ethstorageproof.StorageProof
 	if err := w.RPCcli.CallContext(
@@ -141,12 +143,12 @@ func (w *ERC20Token) GetProof(ctx context.Context, keys [][]byte,
 		"eth_getProof",
 		fmt.Sprintf("0x%x", w.TokenAddr),
 		ethstorageproof.SliceData(keys),
-		helpers.ToBlockNumArg(block.Number()),
+		helpers.ToBlockNumArg(block),
 	); err != nil {
 		return nil, err
 	}
-	resp.StateRoot = block.Root()
-	resp.Height = block.Header().Number
+	resp.StateRoot = blockData.Root()
+	resp.Height = blockData.Header().Number
 	return &resp, nil
 }
 

@@ -27,9 +27,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx := context.Background()
 	ts := erc20.ERC20Token{}
-	ts.Init(context.Background(), *web3, contractAddr)
-	tokenData, err := ts.GetTokenData()
+	ts.Init(ctx, *web3, contractAddr)
+	tokenData, err := ts.GetTokenData(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +38,7 @@ func main() {
 		log.Fatal("decimals cannot be fetch")
 	}
 
-	balance, err := ts.Balance(holderAddr)
+	balance, err := ts.Balance(ctx, holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,11 +58,11 @@ func main() {
 		log.Fatalf("token type not supported %s", *contractType)
 	}
 
-	t, err := token.NewToken(ttype, contractAddr, *web3)
+	t, err := token.NewToken(ctx, ttype, contractAddr, *web3)
 	if err != nil {
 		log.Fatal(err)
 	}
-	slot, amount, err := t.DiscoverSlot(holderAddr)
+	slot, amount, err := t.DiscoverSlot(ctx, holderAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sproof, err := t.GetProof(holderAddr, block.Number(), slot)
+	sproof, err := t.GetProof(ctx, holderAddr, block.Number(), slot)
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
