@@ -110,10 +110,7 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 		return fmt.Errorf("value is nil")
 	}
 	if len(proof.Key) != 32 {
-		return fmt.Errorf("key length is wrong (%d)", len(proof.Key))
-	}
-	if len(proof.Proof) < 4 {
-		return fmt.Errorf("proof length is wrong")
+		return fmt.Errorf("key length is wrong.  Expected 32, got %v", len(proof.Key))
 	}
 	if targetBalance == nil {
 		return fmt.Errorf("target balance is nil")
