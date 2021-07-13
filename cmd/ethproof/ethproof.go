@@ -9,12 +9,15 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
 	"github.com/vocdoni/storage-proofs-eth-go/token/mapbased"
 	"github.com/vocdoni/storage-proofs-eth-go/token/minime"
 )
+
+const timeout = 60 * time.Second
 
 func main() {
 	web3 := flag.String("web3", "https://web3.dappnode.net", "web3 RPC endpoint URL")
@@ -33,10 +36,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	ts := erc20.ERC20Token{}
-	if err := ts.Init(context.Background(), *web3, contractAddr); err != nil {
+	rpcCli, err := rpc.DialContext(ctx, *web3)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ts, err := erc20.New(ctx, rpcCli, contractAddr)
+	if err != nil {
 		log.Fatal(err)
 	}
 	tokenData, err := ts.GetTokenData(ctx)
@@ -69,7 +76,7 @@ func main() {
 		log.Fatalf("token type not supported %s", *contractType)
 	}
 
-	t, err := token.NewToken(ctx, ttype, contractAddr, *web3)
+	t, err := token.New(ctx, rpcCli, ttype, contractAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,12 +89,14 @@ func main() {
 	var blockNum *big.Int
 	if *height > 0 {
 		blockNum = new(big.Int).SetInt64(*height)
+	} else {
+		blockNumUint64, err := ts.EthCli.BlockNumber(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		blockNum = new(big.Int).SetUint64(blockNumUint64)
 	}
-	block, err := ts.GetBlock(context.Background(), blockNum)
-	if err != nil {
-		log.Fatal(err)
-	}
-	sproof, err := t.GetProof(ctx, holderAddr, block.Number(), slot)
+	sproof, err := t.GetProof(ctx, holderAddr, blockNum, slot)
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
@@ -98,7 +107,7 @@ func main() {
 			sproof.StorageProof[0].Value,
 			int(tokenData.Decimals),
 		)
-		log.Printf("balance on block %s: %s", block.String(), balance.FloatString(decimals))
+		log.Printf("balance on block %v: %s", block, balance.FloatString(decimals))
 		log.Printf("hex balance: %x\n", fullBalance.Bytes())
 		log.Printf("storage root: %x\n", sproof.StorageHash)
 		if err := minime.VerifyProof(
@@ -116,7 +125,7 @@ func main() {
 			sproof.StorageProof[0].Value,
 			int(tokenData.Decimals),
 		)
-		log.Printf("mapbased balance on block %s: %s", block.Number().String(),
+		log.Printf("mapbased balance on block %v: %s", blockNum,
 			balance.FloatString(decimals))
 		if err := mapbased.VerifyProof(
 			holderAddr,

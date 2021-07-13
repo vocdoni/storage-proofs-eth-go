@@ -13,9 +13,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
 )
+
+const timeout = 60 * time.Second
 
 func main() {
 	web3 := flag.String("web3", "https://web3.dappnode.net", "web3 RPC endpoint URL")
@@ -30,8 +34,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx := context.Background()
-	getProofs(ctx, *web3, contractAddr, strings.Split(string(data), "\n"))
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	rpcCli, err := rpc.DialContext(ctx, *web3)
+	if err != nil {
+		log.Fatal(err)
+	}
+	getProofs(ctx, rpcCli, contractAddr, strings.Split(string(data), "\n"))
 }
 
 type EthProofs struct {
@@ -46,8 +55,8 @@ type HolderProof struct {
 	StorageProof ethstorageproof.StorageResult `json:"storageProof"`
 }
 
-func getProofs(ctx context.Context, web3 string, contract common.Address, holders []string) {
-	t, err := token.NewToken(ctx, token.TokenTypeMapbased, contract, web3)
+func getProofs(ctx context.Context, rpcCli *rpc.Client, contract common.Address, holders []string) {
+	t, err := token.New(ctx, rpcCli, token.TokenTypeMapbased, contract)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,11 +72,11 @@ func getProofs(ctx context.Context, web3 string, contract common.Address, holder
 		log.Fatalf("Error fetching storageRoot: %v", err)
 	}
 	proofs.StorageRoot = sproof.StorageHash.Hex()
-	blk, err := t.GetBlock(ctx, nil)
+	blockNumUint64, err := ethclient.NewClient(rpcCli).BlockNumber(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	proofs.BlockNum = blk.Number()
+	proofs.BlockNum = new(big.Int).SetUint64(blockNumUint64)
 	wg := sync.WaitGroup{}
 	lock := sync.RWMutex{}
 	for _, h := range holders {
@@ -77,7 +86,7 @@ func getProofs(ctx context.Context, web3 string, contract common.Address, holder
 		wg.Add(1)
 		go func() {
 			holderAddr := common.HexToAddress(h)
-			sproof, err := t.GetProof(ctx, holderAddr, blk.Number(), slot)
+			sproof, err := t.GetProof(ctx, holderAddr, proofs.BlockNum, slot)
 			if err != nil {
 				log.Printf("error fetching %s: %v", holderAddr.Hex(), err)
 			} else {

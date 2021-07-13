@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
@@ -26,13 +26,10 @@ type Minime struct {
 	erc20 *erc20.ERC20Token
 }
 
-func (m *Minime) Init(ctx context.Context, tokenAddress common.Address, web3endpoint string) error {
-	m.erc20 = &erc20.ERC20Token{}
-	return m.erc20.Init(ctx, web3endpoint, tokenAddress)
-}
-
-func (m *Minime) GetBlock(ctx context.Context, block *big.Int) (*types.Block, error) {
-	return m.erc20.GetBlock(ctx, block)
+// New creates a new Minime to get and verify Minime token proofs
+func New(ctx context.Context, rpcCli *rpc.Client, tokenAddress common.Address) (*Minime, error) {
+	erc20, err := erc20.New(ctx, rpcCli, tokenAddress)
+	return &Minime{erc20: erc20}, err
 }
 
 // DiscoverSlot tries to find the map index slot for the minime balances
@@ -92,7 +89,6 @@ func (m *Minime) DiscoverSlot(ctx context.Context, holder common.Address) (int, 
 //
 // Minime checkpoints: [70],[80],[90],[100]
 // For block 87, we need to provide checkpoint 80 and 90
-//
 func (m *Minime) GetProof(ctx context.Context, holder common.Address, block *big.Int,
 	islot int) (*ethstorageproof.StorageProof, error) {
 	checkPointsSize, err := m.getMinimeArraySize(ctx, holder, islot)
@@ -145,7 +141,7 @@ func (m *Minime) GetProof(ctx context.Context, holder common.Address, block *big
 		return nil, fmt.Errorf("checkpoint not found")
 	}
 
-	return m.erc20.GetProof(context.Background(), keys, block)
+	return m.erc20.GetProof(ctx, keys, block)
 }
 
 // VerifyProof verifies a minime storage proof
@@ -174,7 +170,7 @@ func (m *Minime) getMinimeAtPosition(ctx context.Context, holder common.Address,
 	v.Add(v, offset)
 
 	arraySlot := common.BytesToHash(v.Bytes())
-	value, err := m.erc20.Ethcli.StorageAt(ctx, contractAddr, arraySlot, block)
+	value, err := m.erc20.EthCli.StorageAt(ctx, contractAddr, arraySlot, block)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -192,7 +188,7 @@ func (m *Minime) getMinimeArraySize(ctx context.Context, holder common.Address,
 	addr := common.Address{}
 	copy(addr[:], m.erc20.TokenAddr[:20])
 
-	value, err := m.erc20.Ethcli.StorageAt(ctx, addr, mapSlot, nil)
+	value, err := m.erc20.EthCli.StorageAt(ctx, addr, mapSlot, nil)
 	if err != nil {
 		return 0, err
 	}

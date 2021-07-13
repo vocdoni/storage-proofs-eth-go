@@ -50,8 +50,8 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	_, proof0Balance, proof0Block := ParseMinimeValue(proofs[0].Value, 1)
 	// Check balance matches with the provided balance
 	if proof0Balance.Cmp(targetBalance) != 0 {
-		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
-			proof0Balance.String(), targetBalance.String())
+		return fmt.Errorf("proof balance and provided balance mismatch (%v != %v)",
+			proof0Balance, targetBalance)
 	}
 
 	// Verify that `proof0Block <= targetBlock < proof1Block`
