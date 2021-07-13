@@ -8,7 +8,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/helpers"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
@@ -27,17 +27,13 @@ type Mapbased struct {
 	erc20 *erc20.ERC20Token
 }
 
-func (m *Mapbased) Init(ctx context.Context, tokenAddress common.Address,
-	web3endpoint string) error {
-	m.erc20 = &erc20.ERC20Token{}
-	return m.erc20.Init(ctx, web3endpoint, tokenAddress)
+// New creates a new Mapbased to get and verify Mapbased token proofs
+func New(ctx context.Context, rpcCli *rpc.Client, tokenAddress common.Address) (*Mapbased, error) {
+	erc20, err := erc20.New(ctx, rpcCli, tokenAddress)
+	return &Mapbased{erc20: erc20}, err
 }
 
-func (m *Mapbased) GetBlock(ctx context.Context, block *big.Int) (*types.Block, error) {
-	return m.erc20.GetBlock(ctx, block)
-}
-
-// GetProof returns the storage merkle proofs for the acount holder
+// GetProof returns the storage merkle proofs for the acount holder.
 func (m *Mapbased) GetProof(ctx context.Context, holder common.Address,
 	block *big.Int, islot int) (*ethstorageproof.StorageProof, error) {
 	return m.getMapProofWithIndexSlot(ctx, holder, block, islot)
@@ -76,7 +72,7 @@ func (m *Mapbased) DiscoverSlot(ctx context.Context, holder common.Address) (int
 		// Prepare storage index
 		slot = helpers.GetMapSlot(holder, i)
 		// Get Storage
-		value, err := m.erc20.Ethcli.StorageAt(ctx, addr, slot, nil)
+		value, err := m.erc20.EthCli.StorageAt(ctx, addr, slot, nil)
 		if err != nil {
 			return index, nil, err
 		}
@@ -132,8 +128,8 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	// Check value balances matches
 	proofBalance := new(big.Int).SetBytes(proof.Value)
 	if targetBalance.Cmp(proofBalance) != 0 {
-		return fmt.Errorf("proof balance and provided balance mismatch (%s != %s)",
-			proofBalance.String(), targetBalance.String())
+		return fmt.Errorf("proof balance and provided balance mismatch (%v != %v)",
+			proofBalance, targetBalance)
 	}
 
 	// Check merkle proof against the storage root hash

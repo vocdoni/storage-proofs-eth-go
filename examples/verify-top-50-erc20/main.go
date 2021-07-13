@@ -5,12 +5,16 @@ import (
 	"flag"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vocdoni/storage-proofs-eth-go/ethstorageproof"
 	"github.com/vocdoni/storage-proofs-eth-go/token"
 	"github.com/vocdoni/storage-proofs-eth-go/token/erc20"
 )
+
+const timeout = 60 * time.Second
 
 func main() {
 	web3 := flag.String("web3", "https://web3.dappnode.net", "web3 RPC endpoint URL")
@@ -27,9 +31,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx := context.Background()
-	ts := erc20.ERC20Token{}
-	ts.Init(ctx, *web3, contractAddr)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	rpcCli, err := rpc.DialContext(ctx, *web3)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ts, err := erc20.New(ctx, rpcCli, contractAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
 	tokenData, err := ts.GetTokenData(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -42,7 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("contract:%v holder:%v balance:%s", contractAddr, holderAddr, balance.String())
+	log.Printf("contract:%v holder:%v balance:%v", contractAddr, holderAddr, balance)
 	if balance.Cmp(big.NewRat(0, 1)) == 0 {
 		log.Println("no amount for holder")
 		return
@@ -58,7 +69,7 @@ func main() {
 		log.Fatalf("token type not supported %s", *contractType)
 	}
 
-	t, err := token.NewToken(ctx, ttype, contractAddr, *web3)
+	t, err := token.New(ctx, rpcCli, ttype, contractAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,13 +77,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("storage data -> slot: %d amount: %s", slot, amount.String())
+	log.Printf("storage data -> slot: %d amount: %v", slot, amount)
 
-	block, err := ts.GetBlock(context.Background(), nil)
+	blockNumUint64, err := ts.EthCli.BlockNumber(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	sproof, err := t.GetProof(ctx, holderAddr, block.Number(), slot)
+	blockNum := new(big.Int).SetUint64(blockNumUint64)
+	sproof, err := t.GetProof(ctx, holderAddr, blockNum, slot)
 	if err != nil {
 		log.Fatalf("cannot get proof: %v", err)
 	}
