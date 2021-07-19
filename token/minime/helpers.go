@@ -19,8 +19,9 @@ func VerifyProof(holder common.Address, storageRoot common.Hash,
 	if len(proofs) != 2 {
 		return fmt.Errorf("wrong length of storage proofs")
 	}
-	for _, p := range proofs {
-		if p.Value == nil {
+	for i, p := range proofs {
+		// proofs[1].Value can be nil when it's a non-existence proof
+		if i == 0 && p.Value == nil {
 			return fmt.Errorf("value is nil")
 		}
 		if len(p.Value) > 32 {
