@@ -50,9 +50,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if tokenData.Decimals < 1 {
-		log.Fatal("decimals cannot be fetch")
-	}
 	decimals := int(tokenData.Decimals)
 
 	balance, err := ts.Balance(ctx, holderAddr)
