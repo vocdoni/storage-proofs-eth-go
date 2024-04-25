@@ -1,17 +1,75 @@
-# ethereum storage proofs for GoLang
+<p align="center" width="100%">
+    <img src="https://developer.vocdoni.io/img/vocdoni_logotype_full_white.svg" />
+</p>
 
-A storage trie is where all of the contract data lives. Each Ethereum account has its own storage trie. A 256-bit hash of the storage trie’s root node is stored as the storageRoot value in the global state trie.
+<p align="center" width="100%">
+    <a href="https://github.com/vocdoni/storage-proofs-eth-go/commits/main/"><img src="https://img.shields.io/github/commit-activity/m/vocdoni/storage-proofs-eth-go" /></a>
+    <a href="https://github.com/vocdoni/storage-proofs-eth-go/issues"><img src="https://img.shields.io/github/issues/vocdoni/storage-proofs-eth-go" /></a>
+    <a href="https://github.com/vocdoni/storage-proofs-eth-go/actions/workflows/main.yml/"><img src="https://github.com/vocdoni/storage-proofs-eth-go/actions/workflows/main.yml/badge.svg" /></a>
+    <a href="https://discord.gg/xFTh8Np2ga"><img src="https://img.shields.io/badge/discord-join%20chat-blue.svg" /></a>
+    <a href="https://twitter.com/vocdoni"><img src="https://img.shields.io/twitter/follow/vocdoni.svg?style=social&label=Follow" /></a>
+</p>
 
-A storage proof is a Merkle Proof on this storage trie. For the scope of this proposal, the storage proof demonstrates the balance of a token holder for a specific State Root Hash (Ethereum block). This proof can be verified offchain.
+
+  <div align="center">
+    Vocdoni is the first universally verifiable, censorship-resistant, anonymous, and self-sovereign governance protocol. <br />
+    Our main aim is a trustless voting system where anyone can speak their voice and where everything is auditable. <br />
+    We are engineering building blocks for a permissionless, private and censorship resistant democracy.
+    <br />
+    <a href="https://developer.vocdoni.io/"><strong>Explore the developer portal »</strong></a>
+    <br />
+    <h3>More About Us</h3>
+    <a href="https://vocdoni.io">Vocdoni Website</a>
+    |
+    <a href="https://vocdoni.app">Web Application</a>
+    |
+    <a href="https://explorer.vote/">Blockchain Explorer</a>
+    |
+    <a href="https://law.mit.edu/pub/remotevotingintheageofcryptography/release/1">MIT Law Publication</a>
+    |
+    <a href="https://chat.vocdoni.io">Contact Us</a>
+    <br />
+    <h3>Key Repositories</h3>
+    <a href="https://github.com/vocdoni/vocdoni-node">Vocdoni Node</a>
+    |
+    <a href="https://github.com/vocdoni/vocdoni-sdk/">Vocdoni SDK</a>
+    |
+    <a href="https://github.com/vocdoni/ui-components">UI Components</a>
+    |
+    <a href="https://github.com/vocdoni/ui-scaffold">Application UI</a>
+    |
+    <a href="https://github.com/vocdoni/census3">Census3</a>
+  </div>
+
+# storage-proofs-eth-go
+
+This repository implements ethereum storage proofs in GoLang. 
+
+An ethereum storage proof is a cryptographic proof that verifies a certain token holder holds a certain balance. This is done with the following design:
+
+Each Ethereum account has its own storage trie, which is where all of the contract data lives. A 256-bit hash of the storage trie’s root node is stored as the storageRoot value in the global state trie.
+
+Storage proofs leverage this design by creating a Merkle Proof of this storage trie. The storage proof demonstrates the balance of a token holder for a specific State Root Hash (Ethereum block). This proof can be verified offchain.
 
 ![storage trie](https://miro.medium.com/max/529/1*f0vOn0lRgrY5NjFlbUMBFg.jpeg)
 
-[EIP1186](https://github.com/ethereum/EIPs/issues/1186) introduces the web3 call `eth_getProof` which is a convenient method for obtaining the storage proof.
+This is possible due to [EIP1186](https://github.com/ethereum/EIPs/issues/1186) which introduced the web3 call `eth_getProof` which is a convenient method for obtaining the storage proof.
 
 More info regarding storage proofs:
 
-- [https://blog.aragon.one/aragon-voting-part-1-ethereum-storage-time-machine/](https://blog.aragon.one/aragon-voting-part-1-ethereum-storage-time-machine/)
 - [https://medium.com/hackernoon/getting-deep-into-ethereum-how-data-is-stored-in-ethereum-e3f669d96033](https://medium.com/hackernoon/getting-deep-into-ethereum-how-data-is-stored-in-ethereum-e3f669d96033)
+
+This library was designed to allow the generation of on-chain token-based censuses for off-chain voting with Vocdoni. The best place to learn about using storage proofs to create a census is the [developer portal](https://developer.vocdoni.io/protocol/census/on-chain#erc-20-token-storage-proofs).
+
+### Table of Contents
+- [Status](#status)
+- [Reference](#reference)
+- [Getting Started](#getting-started)
+- [Examples](#examples)
+- [Preview](#preview)
+- [Disclaimer](#disclaimer)
+- [Contributing](#contributing)
+- [License](#license)
 
 
 ## Status
@@ -25,9 +83,20 @@ TODO list:
 - [ ] explore adding support for other token standard rather than ERC20
 - [ ] write tests
 
-## Usage
 
-This repository brings all required GoLang packages for generate and verify Ethereum storage proofs for ERC20 contracts.
+## Getting Started
+
+This repository provides all of the golang packages required to generate and verify an Ethereum storage proof for an ERC20 contract. To use this library, just set up a working golang project and import the `token` and `ethstorageproof` packages.
+
+## Reference
+
+Automated documentation of the packages in this library is provided at https://pkg.go.dev/github.com/vocdoni/storage-proofs-eth-go
+
+## Examples
+
+The following tutorial provides an example for integrating ethereum storage proofs into your project.
+
+### Initialize a `token`
 
 Create a `token.ERC20Token{}` type variable, and initialize it with contract `0xdac17f958d2ee523a2206206994597c13d831ec7` (Tether Stablecoin).
 ```golang
@@ -50,9 +119,9 @@ Fetch the basic token data (decimals, name, etc.) and the balance for the token 
 	}
 	fmt.Printf("balance from ERC20 ABI call balanceOf() is %s\n", balance.String())
 ```
-
-For each contract we need to find the **storage index slot**. It depends on the contract implementation, in which storage position the balance is stored.
-For a map based balances ERC20 `map(address)=>uint256`, the storage slot for a specific token holder will be equal to `keccack256( tokenHolder + indexSlot )`.
+### Index Slot
+For each contract we need to find the **storage index slot**. This value depends on the contract implementation and signifies the storage position in which the token balance is stored.
+For a map-based balances, `map(address)=>uint256`, the storage slot for a specific token holder will be equal to `keccack256( tokenHolder + indexSlot )`.
 ```golang
 	tk, err := token.NewToken(token.TokenTypeMapbased, contract, web3)
 	if err != nil {
@@ -66,6 +135,7 @@ For a map based balances ERC20 `map(address)=>uint256`, the storage slot for a s
 	fmt.Printf("balance found on the EVM storage is %s\n"), balance.String())
 ```
 
+### Fetch Storage Proof
 Now lets get the storage proof for the previous token holder on the last Ethereum block, this is obtained using EIP1186 web3 method `eth_getProof` for the last Ethereum block.
 ```golang
 	sproof, err := tk.GetProof(holderAddr, nil)
@@ -74,6 +144,7 @@ Now lets get the storage proof for the previous token holder on the last Ethereu
 	}
 ```
 
+### Verify Storage Proof
 Finally, for a key, a value (balance) and a Storage Hash Merkle Root, verify the Merkle Storage Proof is valid.
 ```golang
 	if pv, err := ethstorageproof.VerifyEIP1186(sproof); pv {
@@ -83,11 +154,11 @@ Finally, for a key, a value (balance) and a Storage Hash Merkle Root, verify the
 	}
 ```
 
-Proofs of **non existing values** can also be generated and verified using the same procedure with the only difference of value equal to `0x0`.
+Proofs of **non existing values** can also be generated and verified using the same procedure with the only difference being the proven value is equal to `0x0`.
 
----
+--- 
 
-Example of proof obtained with the `eth_getProof` method
+Example of a proof obtained with the `eth_getProof` method:
 
 ```json
 {
@@ -123,3 +194,37 @@ Example of proof obtained with the `eth_getProof` method
    ]
 }
 ```
+
+
+## Disclaimer
+
+The code in this repo is WIP. Please beware that it can be broken at any time if the release is `alpha` or `beta`. We encourage you to review this repository and the developer portal for any changes.
+
+## Contributing 
+
+While we welcome contributions from the community, we do not track all of our issues on Github and we may not have the resources to onboard developers and review complex pull requests. That being said, there are multiple ways you can get involved with the project. 
+
+Please review our [development guidelines](https://developer.vocdoni.io/development-guidelines).
+
+## License
+
+This repository is licensed under the [GNU Affero General Public License v3.0.](./LICENSE)
+
+
+    Vocdoni Ethereum Storage Proofs
+    Copyright (C) 2024 Vocdoni Association
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
